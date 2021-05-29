@@ -1,0 +1,15 @@
+[package]
+name = "i76"
+version = "0.1.0"
+authors = ["r1sc <sandberg.erik@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+nom = "6.1.2"
+cached = "0.23.0"
+
+[dependencies.glfw]
+git = "https://github.com/bjz/glfw-rs.git"
+default-features = false
