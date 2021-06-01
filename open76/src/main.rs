@@ -1,29 +1,27 @@
-mod fileparsers;
 mod frustum;
 mod gl;
-mod math;
 mod texture_loader;
-mod clut;
-mod virtual_fs;
 
 extern crate glfw;
 
-use fileparsers::*;
-use math::*;
+use std::{fs::File, io::BufReader};
 
 use glfw::{
     ffi::{glfwSetFramebufferSizeCallback, GLFWwindow},
     Context,
 };
-use virtual_fs::VirtualFS;
 
+use lib76::fileparsers::*;
+use lib76::math::*;
+use lib76::virtual_fs;
+use rodio::{Decoder, OutputStream, Source};
 
 fn render_geo(geo: &geo::Geo) {
     for face in &geo.faces {
         let Vec4(nx, ny, nz, _) = face.normal;
         unsafe {
             gl::Begin(gl::TRIANGLE_FAN);
-            for v in &face.vertex_refs {                
+            for v in &face.vertex_refs {
                 let Vec3(x, y, z) = geo.vertices[v.vertex_index as usize];
                 gl::Normal3f(nx, ny, nz);
                 gl::Vertex3f(x, y, z);
@@ -34,12 +32,13 @@ fn render_geo(geo: &geo::Geo) {
 }
 
 fn main() -> Result<(), std::io::Error> {
-    let vfs = VirtualFS::new();
-    let geo = vfs.load_geo("E:\\i76\\extracted\\aa2_rmp1.geo");
-    // let cbk: cbk::CBK = load("E:\\i76\\extracted\\roadmap3.cbk");
-    // let map: map::Map = load("E:\\i76\\extracted\\ao_1sg_0.map");
-    // let vqm: vqm::VQM = load("E:\\i76\\extracted\\zhpd6.vqm");
-    let sdf = vfs.load_sdf("E:\\i76\\extracted\\aaramp1.sdf");
+    let geo = virtual_fs::load("E:\\i76\\extracted\\aa2_rmp1.geo")?;
+    let sdf: sdf::SDF = virtual_fs::load("E:\\i76\\extracted\\aaramp1.sdf")?;
+
+    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+    let file = BufReader::new(File::open("E:/i76/music/2.mp3").unwrap());
+    let source = Decoder::new(file).unwrap();
+    stream_handle.play_raw(source.convert_samples()).expect("Couldn't play sound");
 
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 

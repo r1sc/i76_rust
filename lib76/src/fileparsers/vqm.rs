@@ -1,9 +1,4 @@
-use nom::{
-    call, do_parse, many0, named,
-    number::complete::{le_u16, le_u32},
-};
-
-use super::cbk::CBK;
+use super::{cbk::CBK, common::Readable};
 
 pub struct VQM {
     pub width: u32,
@@ -12,22 +7,22 @@ pub struct VQM {
     pub pattern_references: Vec<u16>,
 }
 
-impl super::common::Parsable<Self> for VQM {
-    named!(
-        parse<VQM>,
-        do_parse!(
-            width: le_u32
-                >> height: le_u32
-                >> cbk_filename: call!(super::common::cstring, 16)
-                >> pattern_references: many0!(le_u16)
-                >> (VQM {
-                    width,
-                    height,
-                    cbk_filename,
-                    pattern_references
-                })
-        )
-    );
+impl Readable for VQM {
+    fn consume<R>(reader: &mut R) -> Result<Self, std::io::Error>
+    where
+        R: super::common::BinaryReader,
+    {
+        let width = reader.read_u32()?;
+        let height = reader.read_u32()?;
+        let cbk_filename = reader.read_fixed(16)?;
+        let pattern_references = vec![]; // reader.rest_bytes()
+        Ok(Self {
+            width,
+            height,
+            cbk_filename,
+            pattern_references,
+        })
+    }
 }
 
 impl VQM {
