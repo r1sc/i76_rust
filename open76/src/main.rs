@@ -1,5 +1,6 @@
 mod frustum;
 mod gl;
+mod render_graph;
 mod texture_loader;
 
 extern crate glfw;
@@ -11,12 +12,13 @@ use glfw::{
     Context,
 };
 
-use lib76::fileparsers::*;
+use lib76::fileparsers;
 use lib76::math::*;
 use lib76::virtual_fs;
+use render_graph::{Arena, GeoNode};
 use rodio::{Decoder, OutputStream, Source};
 
-fn render_geo(geo: &geo::Geo) {
+fn render_geo(geo: &fileparsers::Geo) {
     for face in &geo.faces {
         let Vec4(nx, ny, nz, _) = face.normal;
         unsafe {
@@ -31,14 +33,37 @@ fn render_geo(geo: &geo::Geo) {
     }
 }
 
+fn render_graph(root_children: &Vec<usize>, arena: &Arena<GeoNode>) {
+    for root in root_children {
+        let part = arena.get(*root);
+
+        unsafe {
+            gl::PushMatrix();
+            gl::Translatef(
+                part.local_position.0,
+                part.local_position.1,
+                part.local_position.2,
+            );
+            render_geo(&part.geo);
+
+            render_graph(&part.children_indices, arena);
+
+            gl::PopMatrix()
+        }
+    }
+}
+
 fn main() -> Result<(), std::io::Error> {
-    let geo = virtual_fs::load("E:\\i76\\extracted\\aa2_rmp1.geo")?;
-    let sdf: sdf::SDF = virtual_fs::load("E:\\i76\\extracted\\aaramp1.sdf")?;
+    // let geo = virtual_fs::load("E:\\i76\\extracted\\aa2_rmp1.geo")?;
+    let sdf: fileparsers::SDF = virtual_fs::load("E:/i76/extracted/nsaguar1.sdf")?;
+    let what = render_graph::from(&sdf.sgeo.lod_levels[0].lod_parts)?;
 
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     let file = BufReader::new(File::open("E:/i76/music/2.mp3").unwrap());
     let source = Decoder::new(file).unwrap();
-    stream_handle.play_raw(source.convert_samples()).expect("Couldn't play sound");
+    stream_handle
+        .play_raw(source.convert_samples())
+        .expect("Couldn't play sound");
 
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
@@ -105,7 +130,8 @@ fn main() -> Result<(), std::io::Error> {
             gl::Rotated(an, 0.0, 1.0, 0.0);
             an = an + 1.0;
 
-            render_geo(&geo);
+            //render_geo(&geo);
+            render_graph(&what.0, &what.1);
 
             // gl::BindTexture(gl::TEXTURE_2D, gl_texture);
             // gl::Begin(gl::QUADS);

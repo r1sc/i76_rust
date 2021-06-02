@@ -1,21 +1,8 @@
-#![feature(bufreader_seek_relative)]
-
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::io::{BufReader, Seek, SeekFrom};
 use std::{fs::File, io::Read};
 
 use crate::fileparsers::common::{BWD2Tag, BinaryReader, Readable};
-
-pub struct VirtualFS {
-    // geo_cache: HashMap<String, Geo>,
-}
-
-fn read_to_buffer(path: &str) -> Result<Vec<u8>, std::io::Error> {
-    let mut f = File::open(path)?;
-    let mut buffer = Vec::new();
-    f.read_to_end(&mut buffer)?;
-    Ok(buffer)
-}
 
 struct MyBinaryReader {
     reader: BufReader<File>,

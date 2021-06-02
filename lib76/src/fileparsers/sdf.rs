@@ -1,6 +1,6 @@
 use super::{
     bwd2::{SCHK, SDFC, SGEO, SOBJ},
-    common::{BWD2Tag, Readable},
+    common::Readable,
 };
 
 pub struct SDF {
