@@ -15,7 +15,7 @@ use glfw::{
 use lib76::fileparsers;
 use lib76::math::*;
 use lib76::virtual_fs;
-use render_graph::{Arena, GeoNode};
+use render_graph::{ GeoNode};
 use rodio::{Decoder, OutputStream, Source};
 
 fn render_geo(geo: &fileparsers::Geo) {
@@ -26,36 +26,36 @@ fn render_geo(geo: &fileparsers::Geo) {
             for v in &face.vertex_refs {
                 let Vec3(x, y, z) = geo.vertices[v.vertex_index as usize];
                 gl::Normal3f(nx, ny, nz);
-                gl::Vertex3f(x, y, z);
+                gl::Vertex3f(-x, y, z);
             }
             gl::End();
         }
     }
 }
 
-fn render_graph(root_children: &Vec<usize>, arena: &Arena<GeoNode>) {
-    for root in root_children {
-        let part = arena.get(*root);
+fn render_graph(root_children: &Vec<GeoNode>) {
+    for part in root_children {
+        let c = part;
 
         unsafe {
             gl::PushMatrix();
             gl::Translatef(
-                part.local_position.0,
-                part.local_position.1,
-                part.local_position.2,
+                -c.local_position.0,
+                c.local_position.1,
+                c.local_position.2,
             );
-            render_geo(&part.geo);
+            render_geo(&c.geo);
 
-            render_graph(&part.children_indices, arena);
+            render_graph(&c.children);
 
-            gl::PopMatrix()
+            gl::PopMatrix();
         }
     }
 }
 
 fn main() -> Result<(), std::io::Error> {
     // let geo = virtual_fs::load("E:\\i76\\extracted\\aa2_rmp1.geo")?;
-    let sdf: fileparsers::SDF = virtual_fs::load("E:/i76/extracted/nsaguar1.sdf")?;
+    let sdf: fileparsers::SDF = virtual_fs::load("E:/i76/extracted/bddonut1.sdf")?;
     let what = render_graph::from(&sdf.sgeo.lod_levels[0].lod_parts)?;
 
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
@@ -104,10 +104,10 @@ fn main() -> Result<(), std::io::Error> {
         glfwSetFramebufferSizeCallback(window.window_ptr(), Some(resize_callback));
 
         gl::Enable(gl::CULL_FACE);
-        gl::FrontFace(gl::CW);
-        // gl::CullFace(gl::BACK);
+        gl::CullFace(gl::BACK);
+        gl::FrontFace(gl::CCW);
 
-        // gl::Enable(gl::DEPTH_TEST);
+        gl::Enable(gl::DEPTH_TEST);
         gl::Enable(gl::TEXTURE_2D);
 
         gl::ClearColor(0.0, 0.0, 0.0, 1.0);
@@ -126,12 +126,12 @@ fn main() -> Result<(), std::io::Error> {
             gl::LoadIdentity();
             gl::Lightfv(gl::LIGHT0, gl::POSITION, light_pos);
 
-            gl::Translated(0.0, 0.0, -10.0);
+            gl::Translated(0.0, 0.0, -50.0);
             gl::Rotated(an, 0.0, 1.0, 0.0);
             an = an + 1.0;
 
             //render_geo(&geo);
-            render_graph(&what.0, &what.1);
+            render_graph(&what);
 
             // gl::BindTexture(gl::TEXTURE_2D, gl_texture);
             // gl::Begin(gl::QUADS);

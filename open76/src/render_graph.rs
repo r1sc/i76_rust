@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use lib76::{
     fileparsers::{bwd2::SGEOPart, common::RotationAxis, Geo},
     math::Vec3,
@@ -7,65 +5,55 @@ use lib76::{
 };
 
 pub struct GeoNode {
+    pub name: String,
     pub geo: Geo,
     pub local_position: Vec3,
     pub axis: RotationAxis,
-    pub children_indices: Vec<usize>,
+    pub children: Vec<GeoNode>,
 }
 
-pub struct Arena<T> {
-    items: Vec<T>,
-}
+pub fn from<'a>(parts: &Vec<SGEOPart>) -> Result<Vec<GeoNode>, std::io::Error> {
+    let mut root_children: Vec<GeoNode> = vec![];
 
-impl<T> Arena<T> {
-    pub fn new() -> Self {
-        Self {
-            items: vec![],
-        }
-    }
-
-    pub fn add(&mut self, data: T) -> usize {
-        let new_index = self.items.len();
-        self.items.push(data);
-        new_index
-    }
-
-    pub fn get_mut(&mut self, index: usize) -> &mut T {
-        &mut self.items[index]
-    }
-
-    pub fn get(&self, index: usize) -> &T {
-        &self.items[index]
-    }
-}
-
-pub fn from<'a>(parts: &Vec<SGEOPart>) -> Result<(Vec<usize>, Arena<GeoNode>), std::io::Error> {
-    let mut arena = Arena::<GeoNode>::new();
-    let mut cache = HashMap::<&str, usize>::new();
-    let mut root_children: Vec<usize> = vec![];
-    
     for part in parts {
         let geo: Geo = virtual_fs::load(&format!("E:/i76/extracted/{}.geo", part.geo_part.name))?;
 
         let node = GeoNode {
             geo,
+            name: part.geo_part.name.clone(),
             local_position: part.geo_part.position,
             axis: part.geo_part.axis,
-            children_indices: vec![],
+            children: vec![],
         };
 
-        let new_index = arena.add(node);
-        cache.insert(&part.geo_part.name[..], new_index);
-
         if part.geo_part.relative_to == "WORLD" {
-            root_children.push(new_index);
+            root_children.push(node);
+        } else {
+            fn find_parent<'a>(
+                children: &'a mut Vec<GeoNode>,
+                relative_to: &str,
+            ) -> Option<&'a mut GeoNode> {
+                for parent in children {
+                    if parent.name == relative_to {
+                        return Some(parent);
+                    }
+                    match find_parent(&mut parent.children, relative_to) {
+                        Some(p) => return Some(p),
+                        None => {}
+                    }
+                }
+                None
+            }
+            match find_parent(&mut root_children, &part.geo_part.relative_to[..]) {
+                Some(parent) => {
+                    parent.children.push(node);
+                }
+                None => {
+                    panic!("Cannot find parent {}", &part.geo_part.relative_to[..])
+                }
+            }
         }
-        else {
-            let parent_index = cache.get(&part.geo_part.relative_to[..]).unwrap();
-            arena.get_mut(*parent_index).children_indices.push(new_index);
-        }
-
     }
 
-    Ok((root_children, arena))
+    Ok(root_children)
 }

@@ -202,3 +202,148 @@ impl Readable for SOBJ {
         })
     }
 }
+
+/*
+****************************** VDF Tags
+*/
+
+pub struct VDFC {
+    pub name: String, // 20
+    pub vehicle_type: u32,
+    pub vehicle_size: u32,
+    pub lod_distances: Vec<f32>, //5
+    pub mass: f32,
+    pub collision_multiplier: f32,
+    pub drag_coefficient: f32,
+    pub unk: u32,
+}
+impl Readable for VDFC {
+    fn consume<R>(reader: &mut R) -> Result<Self, std::io::Error>
+    where
+        R: BinaryReader,
+        Self: Sized,
+    {
+        let name = reader.read_fixed(20)?;
+        let vehicle_type = reader.read_u32()?;
+        let vehicle_size = reader.read_u32()?;
+        let lod_distances = (0..5)
+            .map(|_| reader.read_f32())
+            .collect::<Result<Vec<f32>, std::io::Error>>()?;
+        let mass = reader.read_f32()?;
+        let collision_multiplier = reader.read_f32()?;
+        let drag_coefficient = reader.read_f32()?;
+        let unk = reader.read_u32()?;
+
+        Ok(Self {
+            name,
+            vehicle_type,
+            vehicle_size,
+            lod_distances,
+            mass,
+            collision_multiplier,
+            drag_coefficient,
+            unk,
+        })
+    }
+}
+
+pub struct VLOC {
+    pub index: u32,
+    pub rotation: RotationAxis,
+    pub position: Vec3,
+}
+impl Readable for VLOC {
+    fn consume<R>(reader: &mut R) -> Result<Self, std::io::Error>
+    where
+        R: BinaryReader,
+        Self: Sized,
+    {
+        let index = reader.read_u32()?;
+        let rotation = RotationAxis::consume(reader)?;
+        let position = Vec3::consume(reader)?;
+
+        Ok(Self {
+            index,
+            rotation,
+            position,
+        })
+    }
+}
+
+pub struct VGEOPart {
+    pub name: String, //8
+    pub rotation: RotationAxis,
+    pub position: Vec3,
+    pub relative_to: String, //8
+    pub v_unk1: Vec3,
+    pub bbox_size: Vec3,
+    pub u1: f32,
+    pub flag: u32,
+    pub u3: u32,
+}
+impl Readable for VGEOPart {
+    fn consume<R>(reader: &mut R) -> Result<Self, std::io::Error>
+    where
+        R: BinaryReader,
+        Self: Sized,
+    {
+        let name = reader.read_fixed(8)?;
+        let rotation = RotationAxis::consume(reader)?;
+        let position = Vec3::consume(reader)?;
+        let relative_to = reader.read_fixed(8)?;
+        let v_unk1 = Vec3::consume(reader)?;
+        let bbox_size = Vec3::consume(reader)?;
+        let u1 = reader.read_f32()?;
+        let flag = reader.read_u32()?;
+        let u3 = reader.read_u32()?;
+
+        Ok(Self {
+            name,
+            rotation,
+            position,
+            relative_to,
+            v_unk1,
+            bbox_size,
+            u1,
+            flag,
+            u3,
+        })
+    }
+}
+
+pub struct VGEO {
+    pub num_parts: u32,
+    pub third_person_parts: Vec<Vec<Vec<VGEOPart>>>, // 4 lods * 4 damage states * num_parts
+    pub first_person_parts: Vec<Vec<Vec<VGEOPart>>>, // 4 damage states * num_parts
+    pub other_parts: Vec<Vec<Vec<VGEOPart>>>,        // 2 lods * 4 damage states * num_parts
+}
+impl Readable for VGEO {
+    fn consume<R>(reader: &mut R) -> Result<Self, std::io::Error>
+    where
+        R: BinaryReader,
+        Self: Sized,
+    {
+        let num_parts = reader.read_u32()?;
+
+        let mut read_parts = |num_lods| {
+            (0..num_lods).map(|_lod| {
+                (0..4).map(|_damage_state| {
+                    (0..num_parts)
+                        .map(|_part_no| VGEOPart::consume(reader))
+                        .collect::<Result<Vec<VGEOPart>, std::io::Error>>()
+                }).collect::<Result<Vec<Vec<VGEOPart>>, std::io::Error>>()
+            }).collect::<Result<Vec<Vec<Vec<VGEOPart>>>, std::io::Error>>()
+        };
+
+        let third_person_parts = read_parts(4)?;
+        let first_person_parts = read_parts(1)?;
+        let other_parts = read_parts(2)?;
+
+        Ok(Self {
+            num_parts,
+            third_person_parts,
+            first_person_parts,
+            other_parts
+        })
+    }
+}

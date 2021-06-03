@@ -1,0 +1,12 @@
+[package]
+name = "libsmacker"
+version = "0.1.0"
+authors = ["Erik Sandberg <sandberg.erik@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libsmacker-sys = { path = "../libsmacker-sys" }
+enum_primitive = "0.1.1"
+bitflags = "1.2.1"
