@@ -29,29 +29,15 @@ pub enum YScaleMode {
 
 bitflags! {
     pub struct EnableMask: u8 {
-        const Track0 = ffi::SMK_AUDIO_TRACK_0;
-        const Track1 = ffi::SMK_AUDIO_TRACK_1;
-        const Track2 = ffi::SMK_AUDIO_TRACK_2;
-        const Track3 = ffi::SMK_AUDIO_TRACK_3;
-        const Track4 = ffi::SMK_AUDIO_TRACK_4;
-        const Track5 = ffi::SMK_AUDIO_TRACK_5;
-        const Track6 = ffi::SMK_AUDIO_TRACK_6;
-        const VideoTrack = ffi::SMK_VIDEO_TRACK;
+        const TRACK0 = ffi::SMK_AUDIO_TRACK_0;
+        const TRACK1 = ffi::SMK_AUDIO_TRACK_1;
+        const TRACK2 = ffi::SMK_AUDIO_TRACK_2;
+        const TRACK3 = ffi::SMK_AUDIO_TRACK_3;
+        const TRACK4 = ffi::SMK_AUDIO_TRACK_4;
+        const TRACK5 = ffi::SMK_AUDIO_TRACK_5;
+        const TRACK6 = ffi::SMK_AUDIO_TRACK_6;
+        const VIDEO_TRACK = ffi::SMK_VIDEO_TRACK;
     }
-}
-
-enum_from_primitive! {
-    #[derive(Debug, Copy, Clone, PartialEq)]
-    #[repr(u8)]
-pub enum AudioTrack {
-    Track0 = ffi::SMK_AUDIO_TRACK_0,
-    Track1 = ffi::SMK_AUDIO_TRACK_1,
-    Track2 = ffi::SMK_AUDIO_TRACK_2,
-    Track3 = ffi::SMK_AUDIO_TRACK_3,
-    Track4 = ffi::SMK_AUDIO_TRACK_4,
-    Track5 = ffi::SMK_AUDIO_TRACK_5,
-    Track6 = ffi::SMK_AUDIO_TRACK_6,
-}
 }
 
 pub struct Smk {
@@ -148,10 +134,6 @@ pub fn audio_info(ctx: *mut ffi::smk_t) -> Option<AudioInfo> {
     }
 }
 
-fn get_audio_size(ctx: *mut ffi::smk_t, track: AudioTrack) -> u32 {
-    unsafe { ffi::smk_get_audio_size(ctx, track as u8) }
-}
-
 impl Smk {
     pub fn open_memory(buffer: &[u8]) -> Option<Self> {
         unsafe {
@@ -198,11 +180,11 @@ impl Smk {
         }
     }
 
-    pub fn get_audio(&self, track: AudioTrack) -> Option<&[u8]> {
+    pub fn get_audio(&self, track: u8) -> Option<&[u8]> {
         unsafe {
-            let size = get_audio_size(self.ctx, track);
+            let size = ffi::smk_get_audio_size(self.ctx, track);
+            let ptr = ffi::smk_get_audio(self.ctx, track);
 
-            let ptr = ffi::smk_get_audio(self.ctx, track as u8);
             if ptr.is_null() {
                 None
             } else {

@@ -10,6 +10,7 @@ edition = "2018"
 byteorder = "1.4.3"
 rodio = "0.14.0"
 lib76 = { path = "../lib76" }
+libsmacker = { path = "../libsmacker" }
 
 [dependencies.glfw]
 git = "https://github.com/bjz/glfw-rs.git"

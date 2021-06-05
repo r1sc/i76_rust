@@ -608,6 +608,7 @@ dependencies = [
  "byteorder",
  "glfw",
  "lib76",
+ "libsmacker",
  "rodio",
 ]
 

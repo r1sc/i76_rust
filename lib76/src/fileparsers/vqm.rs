@@ -15,7 +15,7 @@ impl Readable for VQM {
         let width = reader.read_u32()?;
         let height = reader.read_u32()?;
         let cbk_filename = reader.read_fixed(16)?;
-        let pattern_references = vec![]; // reader.rest_bytes()
+        let pattern_references = reader.rest_bytes_u16()?;
         Ok(Self {
             width,
             height,

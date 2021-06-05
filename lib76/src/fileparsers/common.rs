@@ -16,7 +16,8 @@ pub trait BinaryReader {
     fn read_fixed(&mut self, count: usize) -> Result<String, std::io::Error>;
 
     fn bytes(&mut self, count: usize) -> Result<Vec<u8>, std::io::Error>;
-    fn rest_bytes(&mut self) -> Result<Vec<u8>, std::io::Error>;
+    fn rest_bytes_u8(&mut self) -> Result<Vec<u8>, std::io::Error>;
+    fn rest_bytes_u16(&mut self) -> Result<Vec<u16>, std::io::Error>;
 
     fn bwd2_tag(&mut self) -> Result<BWD2Tag, std::io::Error>;
 

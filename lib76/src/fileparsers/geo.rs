@@ -28,9 +28,7 @@ impl Readable for Geo {
             .collect::<Result<Vec<Vec3>, std::io::Error>>()?;
         let faces = (0..face_count)
             .map(|_| GeoFace::consume(reader))
-            .collect::<Result<Vec<GeoFace>, std::io::Error>>()?;
-
-        
+            .collect::<Result<Vec<GeoFace>, std::io::Error>>()?;      
 
         Ok(Self {
             name,

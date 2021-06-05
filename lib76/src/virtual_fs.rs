@@ -50,8 +50,28 @@ impl BinaryReader for MyBinaryReader {
         Ok(buffer)
     }
 
-    fn rest_bytes(&mut self) -> Result<Vec<u8>, std::io::Error> {
-        todo!()
+    fn rest_bytes_u8(&mut self) -> Result<Vec<u8>, std::io::Error> {
+        let pos = self.reader.stream_position()?;
+        let end_pos = self.reader.seek(SeekFrom::End(0))?;
+        let len = end_pos - pos;
+        self.reader.seek(SeekFrom::Start(pos))?;
+
+        let mut result: Vec<u8> = Vec::with_capacity(len as usize);
+        self.reader.read(&mut result)?;
+
+        Ok(result)
+    }
+
+    fn rest_bytes_u16(&mut self) -> Result<Vec<u16>, std::io::Error> {
+        let pos = self.reader.stream_position()?;
+        let end_pos = self.reader.seek(SeekFrom::End(0))?;
+        let len = end_pos - pos;
+        self.reader.seek(SeekFrom::Start(pos))?;
+
+        let mut result: Vec<u16> = vec![0; (len / 2) as usize];
+        self.reader.read_u16_into::<LittleEndian>(&mut result)?;
+
+        Ok(result)
     }
 
     fn bwd2_tag(&mut self) -> Result<BWD2Tag, std::io::Error> {
