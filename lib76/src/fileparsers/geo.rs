@@ -1,4 +1,7 @@
-use super::common::*;
+use super::{
+    binary_reader::{BinaryReader, Readable},
+    common::*,
+};
 use crate::math::*;
 
 #[derive(Debug)]
@@ -10,10 +13,7 @@ pub struct Geo {
 }
 
 impl Readable for Geo {
-    fn consume<R>(reader: &mut R) -> Result<Self, std::io::Error>
-    where
-        R: BinaryReader,
-    {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let _tag = reader.read_fixed(4)?;
         let _b = reader.read_u32()?;
         let name = reader.read_fixed(16)?;
@@ -28,7 +28,7 @@ impl Readable for Geo {
             .collect::<Result<Vec<Vec3>, std::io::Error>>()?;
         let faces = (0..face_count)
             .map(|_| GeoFace::consume(reader))
-            .collect::<Result<Vec<GeoFace>, std::io::Error>>()?;      
+            .collect::<Result<Vec<GeoFace>, std::io::Error>>()?;
 
         Ok(Self {
             name,
@@ -49,10 +49,7 @@ pub struct GeoFace {
     pub vertex_refs: Vec<GeoVertexRef>,
 }
 impl Readable for GeoFace {
-    fn consume<R>(reader: &mut R) -> Result<Self, std::io::Error>
-    where
-        R: BinaryReader,
-    {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let index = reader.read_u32()?;
         let num_vertices = reader.read_u32()?;
         let color = ColorRGB::consume(reader)?;
@@ -89,10 +86,7 @@ pub struct GeoVertexRef {
     pub uv: (f32, f32),
 }
 impl Readable for GeoVertexRef {
-    fn consume<R>(reader: &mut R) -> Result<Self, std::io::Error>
-    where
-        R: BinaryReader,
-    {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let vertex_index = reader.read_u32()?;
         let normal_index = reader.read_u32()?;
         let u = reader.read_f32()?;
@@ -101,7 +95,7 @@ impl Readable for GeoVertexRef {
         Ok(Self {
             vertex_index,
             normal_index,
-            uv: (u, v)
+            uv: (u, v),
         })
     }
 }

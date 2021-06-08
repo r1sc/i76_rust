@@ -1,12 +1,11 @@
-use crate::fileparsers::common::{BinaryReader, Readable};
+use crate::fileparsers::binary_reader::{BinaryReader, Readable};
+
 
 #[derive(Debug, Clone, Copy)]
 pub struct Vec3(pub f32, pub f32, pub f32);
 
 impl Readable for Vec3 {
-    fn consume<R>(reader: &mut R) -> Result<Self, std::io::Error>
-    where
-        R: BinaryReader,
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
     {
         let x = reader.read_f32()?;
         let y = reader.read_f32()?;
@@ -19,9 +18,7 @@ impl Readable for Vec3 {
 pub struct Vec4(pub f32, pub f32, pub f32, pub f32);
 
 impl Readable for Vec4 {
-    fn consume<R>(reader: &mut R) -> Result<Self, std::io::Error>
-    where
-        R: BinaryReader,
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
     {
         let x = reader.read_f32()?;
         let y = reader.read_f32()?;

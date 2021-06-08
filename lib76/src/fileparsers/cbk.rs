@@ -1,4 +1,4 @@
-use super::common::Readable;
+use super::binary_reader::{BinaryReader, Readable};
 
 pub struct CBK {
     pub num_entries: u32,
@@ -6,12 +6,10 @@ pub struct CBK {
 }
 
 impl Readable for CBK {
-    fn consume<R>(reader: &mut R) -> Result<Self, std::io::Error>
-    where
-        R: super::common::BinaryReader,
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
     {
         let num_entries = reader.read_u32()?;
-        let patterns = (1..num_entries)
+        let patterns = (0..num_entries)
             .map(|_| reader.bytes(16))
             .collect::<Result<Vec<Vec<_>>, std::io::Error>>()?;
 

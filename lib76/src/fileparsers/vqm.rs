@@ -1,4 +1,7 @@
-use super::{cbk::CBK, common::Readable};
+use super::{
+    binary_reader::{BinaryReader, Readable},
+    cbk::CBK,
+};
 
 pub struct VQM {
     pub width: u32,
@@ -8,10 +11,7 @@ pub struct VQM {
 }
 
 impl Readable for VQM {
-    fn consume<R>(reader: &mut R) -> Result<Self, std::io::Error>
-    where
-        R: super::common::BinaryReader,
-    {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let width = reader.read_u32()?;
         let height = reader.read_u32()?;
         let cbk_filename = reader.read_fixed(16)?;
