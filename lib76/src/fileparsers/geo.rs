@@ -51,7 +51,7 @@ pub struct GeoFace {
 impl Readable for GeoFace {
     fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let index = reader.read_u32()?;
-        let num_vertices = reader.read_u32()?;
+        let num_vertices_in_face = reader.read_u32()?;
         let color = ColorRGB::consume(reader)?;
         let normal = Vec4::consume(reader)?;
 
@@ -64,7 +64,7 @@ impl Readable for GeoFace {
         let texture_name = reader.read_fixed(13)?;
         reader.read_u32()?;
         reader.read_u32()?;
-        let vertex_refs = (0..num_vertices)
+        let vertex_refs = (0..num_vertices_in_face)
             .map(|_| GeoVertexRef::consume(reader))
             .collect::<Result<Vec<GeoVertexRef>, std::io::Error>>()?;
 

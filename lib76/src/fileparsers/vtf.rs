@@ -1,10 +1,10 @@
-use super::binary_reader::Readable;
+use super::binary_reader::{BinaryReader, Readable};
 
 pub struct VTF {
     pub vtfc: VTFC,
 }
 impl Readable for VTF {
-    fn consume(reader: &mut super::binary_reader::BinaryReader) -> Result<Self, std::io::Error>
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
     where
         Self: Sized,
     {
@@ -31,7 +31,7 @@ pub struct VTFC {
     pub parts: Vec<String>,     // 13 * 29
 }
 impl Readable for VTFC {
-    fn consume(reader: &mut super::binary_reader::BinaryReader) -> Result<Self, std::io::Error> {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let vdf_file = reader.read_fixed(13)?;
         let paint_job_name = reader.read_fixed(16)?;
         let parts = (0..29)

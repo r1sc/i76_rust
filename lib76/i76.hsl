@@ -3,6 +3,51 @@
 typedef unsigned __int32 uint32_t;
 typedef unsigned __int16 uint16_t;
 
+
+struct GeoFace {
+uint32_t index;
+uint32_t num_vertices;
+char r;
+char g;
+char b;
+float nx;
+float ny;
+float nz;
+float nw;
+uint32_t unk;
+char f1;
+char f2;
+char f3;
+char texture_name[13];
+uint32_t unk2;
+uint32_t unk3;
+struct VertexRef {
+uint32_t vertex_index;
+uint32_t normal_index;
+float u;
+float v;
+} vertex_refs[num_vertices];
+};
+
+
+struct Vec3 {
+float x;
+float y;
+float z;
+};
+
+struct GeoFile {
+char tag[4];
+uint32_t unk;
+char name[16];
+uint32_t vertex_count;
+uint32_t face_count;
+uint32_t unk2;
+struct Vec3 vertices[vertex_count];
+struct Vec3 normals[vertex_count];
+struct GeoFace faces[face_count];
+};
+
 struct SOBJ
 {
     char tag[4];

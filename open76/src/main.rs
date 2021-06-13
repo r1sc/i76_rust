@@ -6,133 +6,30 @@ mod render_graph;
 mod smacker_player;
 mod texture_loader;
 mod virtual_fs;
+mod terrain;
 
 use std::{path::Path, time::Instant};
 
+use cache::FileCache;
 use gl::types::GLuint;
 use glfw::{
     ffi::{glfwSetFramebufferSizeCallback, GLFWwindow},
     Action, Context,
 };
 
-use lib76::{clut::LUT, fileparsers::{self, Geo, cbk::CBK, map::Map, vcf::VCF, vdf::VDF, vqm::VQM}};
+use lib76::fileparsers::{msn::ODEFObj, ter::TER, tmt::TMT, vtf::VTF};
 use lib76::{
-    fileparsers::{tmt::TMT, vtf::VTF},
-    math::*,
+    clut::LUT,
+    fileparsers::{self, cbk::CBK, map::Map, msn::MSN, vcf::VCF, vdf::VDF, vqm::VQM, Geo},
 };
-use render_graph::GeoNode;
+
 use texture_loader::load_gl_texture;
 
-enum RenderMode<'a> {
-    SGEO,
-    Vehicle(&'a VTF),
-}
-
-fn render_geo(
-    geo: &fileparsers::Geo,
-    texture_cache: &mut cache::FileCache<GLuint>,
-    tmt_cache: &mut cache::FileCache<TMT>,
-    use_face_normals: bool,
-    render_mode: &RenderMode,
-) {
-    for face in &geo.faces {
-        unsafe {
-            if face.texture_name != "" && face.texture_name != "V1 BO DY" {
-                let texture_name = match render_mode {
-                    RenderMode::SGEO => &face.texture_name,
-                    RenderMode::Vehicle(vtf) => {
-                        if face.texture_name.starts_with("V1") {
-                            let vtf_part_no =
-                                fileparsers::vtf::car_texture_name_to_vtf_loc(&face.texture_name);
-
-                            let filename = &vtf.vtfc.parts[vtf_part_no as usize][..];
-                            if filename.ends_with(".TMT") || filename.ends_with(".tmt") {
-                                let tmt = tmt_cache.get(filename);
-                                match tmt {
-                                    Some(tmt) => &tmt.filenames[0][0][..],
-                                    None => {
-                                        panic!("Cannot find TMT file {}", filename)
-                                    }
-                                }
-                            } else {
-                                filename
-                            }
-                        } else {
-                            &face.texture_name[..]
-                        }
-                    }
-                };
-
-                texture_cache
-                    .get(texture_name)
-                    .map(|tex| gl::BindTexture(gl::TEXTURE_2D, **tex));
-            } else {
-                gl::BindTexture(gl::TEXTURE_2D, 0);
-            }
-
-            if (face.flags.1 & 4) == 4 {
-                gl::Enable(gl::ALPHA_TEST);
-            } else {
-                gl::Disable(gl::ALPHA_TEST);
-            }
-
-            gl::Begin(gl::TRIANGLE_FAN);
-            for v in &face.vertex_refs {
-                let Vec3(x, y, z) = geo.vertices[v.vertex_index as usize];
-                let Vec3(nx, ny, nz) = if use_face_normals {
-                    Vec3(face.normal.0, face.normal.1, face.normal.2)
-                } else {
-                    geo.normals[v.normal_index as usize]
-                };
-                let (u, v) = v.uv;
-
-                gl::TexCoord2f(u, v);
-                gl::Normal3f(nx, ny, nz);
-                gl::Vertex3f(-x, y, z);
-            }
-            gl::End();
-        }
-    }
-}
-
-fn render_graph(
-    root_children: &Vec<GeoNode>,
-    texture_cache: &mut cache::FileCache<GLuint>,
-    tmt_cache: &mut cache::FileCache<TMT>,
-    use_face_normals: bool,
-    render_mode: &RenderMode,
-) {
-    for part in root_children {
-        unsafe {
-            gl::PushMatrix();
-            gl::Translatef(
-                -part.local_position.0,
-                part.local_position.1,
-                part.local_position.2,
-            );
-            render_geo(
-                &part.geo,
-                texture_cache,
-                tmt_cache,
-                use_face_normals,
-                render_mode,
-            );
-
-            render_graph(
-                &part.children,
-                texture_cache,
-                tmt_cache,
-                use_face_normals,
-                render_mode,
-            );
-
-            gl::PopMatrix();
-        }
-    }
-}
+use crate::{render_graph::{GeoNode, RenderMode}, terrain::{get_terrain_block_at, render_block}};
 
 fn load_vcf(vcf_filename: &str) -> Result<(VCF, VDF, VTF), std::io::Error> {
-    let vcf: fileparsers::vcf::VCF = virtual_fs::load(&format!("E:/i76/extracted/{}", vcf_filename))?;
+    let vcf: fileparsers::vcf::VCF =
+        virtual_fs::load(&format!("E:/i76/extracted/{}", vcf_filename))?;
     let vdf: fileparsers::vdf::VDF =
         virtual_fs::load(&format!("E:/i76/extracted/{}", vcf.vcfc.vdf_filename))?;
     let vtf: fileparsers::vtf::VTF =
@@ -141,26 +38,27 @@ fn load_vcf(vcf_filename: &str) -> Result<(VCF, VDF, VTF), std::io::Error> {
     Ok((vcf, vdf, vtf))
 }
 
-fn main() -> Result<(), std::io::Error> {
-    let (vcf, vdf, vtf) = load_vcf("vppirna1.vcf")?;
-
-    let mut geo_cache = cache::FileCache::new(|name| {
+fn build_geo_cache<'a>() -> FileCache<'a, Geo> {
+    cache::FileCache::new(|name| {
         virtual_fs::load::<Geo>(&format!("E:/i76/extracted/{}.geo", name)).ok()
-    });
+    })
+}
 
-    let vdf_graph = render_graph::from(vdf.vgeo.third_person_parts[0][0].iter(), &mut geo_cache)?;
-
-    // let sdf: fileparsers::SDF = virtual_fs::load("E:/i76/extracted/BDWGNWL1.sdf")?;
-    // let graph = render_graph::from(sdf.sgeo.lod_levels[0].lod_parts.iter().map(|a| &a.geo_part))?;
-    let mut camera = camera::Camera::new();
-
-    let mut cbk_cache = cache::FileCache::new(|name| {
+fn build_cbk_cache<'a>() -> FileCache<'a, CBK> {
+    cache::FileCache::new(|name| {
         virtual_fs::load::<CBK>(&format!("E:/i76/extracted/{}", name)).ok()
-    });
+    })
+}
 
-    let mut texture_cache = cache::FileCache::new(|name| {
-        let vqm_path = format!("E:/i76/extracted/{}.vqm", name);
-        let map_path = format!("E:/i76/extracted/{}.map", name);
+fn build_texture_cache<'a>(cbk_cache: &'a mut FileCache<CBK>) -> FileCache<'a, GLuint> {
+    cache::FileCache::new(move |name| {
+        let fixed_name = if name.to_ascii_lowercase().ends_with(".map") {
+            &name[0..name.len() - 4]
+        } else {
+            name
+        };
+        let vqm_path = format!("E:/i76/extracted/{}.vqm", fixed_name);
+        let map_path = format!("E:/i76/extracted/{}.map", fixed_name);
 
         let tex = match (Path::new(&vqm_path).exists(), Path::new(&map_path).exists()) {
             (true, _) => {
@@ -186,15 +84,61 @@ fn main() -> Result<(), std::io::Error> {
         }?;
 
         Some(tex)
-    });
+    })
+}
 
-    let mut tmt_cache = cache::FileCache::new(|name| {
+fn build_tmt_cache<'a>() -> FileCache<'a, TMT> {
+    cache::FileCache::new(|name| {
         virtual_fs::load::<TMT>(&format!("E:/i76/extracted/{}", name)).ok()
-    });
+    })
+}
 
+fn main() -> Result<(), std::io::Error> {
+    println!("Initializing");
+
+    let mut camera = camera::Camera::new();
+
+    let mut geo_cache = build_geo_cache();
+    let mut cbk_cache = build_cbk_cache();
+    let mut texture_cache = build_texture_cache(&mut cbk_cache);
+    let mut tmt_cache = build_tmt_cache();
+
+    println!("Loading data");
+    let msn: MSN = virtual_fs::load("E:/i76/MISSIONS/T01.msn")?;
+
+    let ter: TER = virtual_fs::load(&format!("E:/i76/MISSIONS/{}", &msn.tdef.zone.ter_filename))?;
+
+    let objects = msn
+        .odef_objs
+        .iter()
+        .map(|o| {
+            if o.class_id == 1 {
+                let (vcf, vdf, vtf) = load_vcf(&format!("{}.vcf", &o.label[..]))?;
+                println!(
+                    "Building render graph for {} {}",
+                    vdf.vdfc.name, vcf.vcfc.variant_name
+                );
+                let vdf_graph =
+                    render_graph::from(vdf.vgeo.third_person_parts[0][0].iter(), &mut geo_cache)?;
+                Ok((vdf_graph, RenderMode::Vehicle(vtf), o))
+            } else {
+                let sdf: fileparsers::SDF =
+                    virtual_fs::load(&format!("E:/i76/extracted/{}.sdf", o.label))?;
+                println!("Building render graph for {}", sdf.sdfc.name);
+                let graph = render_graph::from(
+                    sdf.sgeo.lod_levels[0].lod_parts.iter().map(|a| &a.geo_part),
+                    &mut &mut geo_cache,
+                )?;
+                Ok((graph, RenderMode::SGEO, o))
+            }
+        })
+        .collect::<Result<Vec<(Vec<GeoNode>, render_graph::RenderMode, &ODEFObj)>, std::io::Error>>(
+        )?;
+
+    println!("Starting GLFW...");
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
-    let (mut window, events) = glfw
+    let (mut window, _events) = glfw
         .create_window(800, 600, "Hello this is window", glfw::WindowMode::Windowed)
         .expect("Failed to create GLFW window.");
 
@@ -212,7 +156,7 @@ fn main() -> Result<(), std::io::Error> {
             gl::LoadIdentity();
 
             let mut matrix = [0.0; 16];
-            frustum::glh_perspectivef2(&mut matrix, 60.0, w as f32 / h as f32, 0.1, 100.0);
+            frustum::glh_perspectivef2(&mut matrix, 60.0, w as f32 / h as f32, 0.1, 1000.0);
             gl::LoadMatrixf(matrix.as_ptr());
             gl::MatrixMode(gl::MODELVIEW);
         }
@@ -247,10 +191,13 @@ fn main() -> Result<(), std::io::Error> {
         gl::Lightfv(gl::LIGHT0, gl::AMBIENT, [0.5, 0.5, 0.5, 1.0].as_ptr());
     }
 
+    println!("...done");
+
+    let terrain_block = get_terrain_block_at(&ter, &msn.tdef.zmap.zone_references, 57, 5);      
+
     let (mut ox, mut oy) = (0.0, 0.0);
     let mut last_time = Instant::now();
-
-    let mut an = 0.0;
+    let mut sky_drift = 0.0;
     while !window.should_close() {
         let now = Instant::now();
         let delta = now.duration_since(last_time);
@@ -261,38 +208,74 @@ fn main() -> Result<(), std::io::Error> {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
             gl::LoadIdentity();
-            camera.do_gl_transform();
+            gl::Rotatef(camera.pitch, 1.0, 0.0, 0.0);
+            gl::Rotatef(camera.yaw, 0.0, 1.0, 0.0);
+
+            gl::Disable(gl::LIGHTING);
+            gl::Disable(gl::DEPTH_TEST);
+            gl::Disable(gl::ALPHA_TEST);
+            gl::Enable(gl::TEXTURE_2D);
+
+            gl::PushMatrix();
+
+            texture_cache
+                .get(&msn.wrld.sky_texture_filename)
+                .map(|tex| gl::BindTexture(gl::TEXTURE_2D, **tex));
+
+            gl::Color3f(1.0, 1.0, 1.0);
+            gl::Begin(gl::QUADS);
+            gl::TexCoord2d(sky_drift, 0.0);
+            gl::Vertex3f(-100.0, 1.0, -100.0);
+            gl::TexCoord2d(sky_drift + 100.0, 0.0);
+            gl::Vertex3f(100.0, 1.0, -100.0);
+            gl::TexCoord2d(sky_drift + 100.0, 100.0);
+            gl::Vertex3f(100.0, 1.0, 100.0);
+            gl::TexCoord2d(sky_drift, 100.0);
+            gl::Vertex3f(-100.0, 1.0, 100.0);
+            gl::End();
+
+            gl::PopMatrix();
+
+            gl::Translatef(-camera.position.x, -camera.position.y, -camera.position.z);
+
+            gl::Enable(gl::CULL_FACE);
+            gl::Enable(gl::ALPHA_TEST);
+            gl::Enable(gl::DEPTH_TEST);
+            gl::Enable(gl::LIGHTING);
 
             gl::Lightfv(gl::LIGHT0, gl::POSITION, light_pos);
 
-            gl::PushMatrix();
-            gl::Translated(0.0, 0.0, -5.0);
-            //gl::Rotatef(an, 0.0, 1.0, 0.0);
-            render_graph(
-                &vdf_graph,
-                &mut texture_cache,
-                &mut tmt_cache,
-                false,
-                &RenderMode::Vehicle(&vtf),
-            );
-            gl::PopMatrix();
+            for object in &objects {
+                gl::PushMatrix();
+                gl::Translatef(
+                    object.2.position.0,
+                    object.2.position.1,
+                    object.2.position.2,
+                );
 
-            an+=1.0;
-            // gl::PushMatrix();
-            // gl::Translated(10.0, 0.0, -10.0);
-            // render_graph(
-            //     &graph,
-            //     &mut texture_cache,
-            //     &mut tmt_cache,
-            //     false,
-            //     &RenderMode::SGEO,
-            // );
-            // gl::PopMatrix();
+                render_graph::draw_graph(
+                    &object.0,
+                    &mut texture_cache,
+                    &mut tmt_cache,
+                    false,
+                    &object.1,
+                );
+                gl::PopMatrix();
+            }
+
+            texture_cache
+                .get(&msn.wrld.surface_texture_filename)
+                .map(|tex| gl::BindTexture(gl::TEXTURE_2D, **tex));
+
+            gl::Translatef(3840.0, 10.0, 38670.0);
+            render_block(terrain_block);
         }
 
         window.swap_buffers();
 
         glfw.poll_events();
+
+        sky_drift = (sky_drift + 0.1 * secs) % 100.0;
 
         let mut x_disp: f64 = 0.0;
         let mut z_disp: f64 = 0.0;
@@ -325,3 +308,4 @@ fn main() -> Result<(), std::io::Error> {
 
     return Ok(());
 }
+

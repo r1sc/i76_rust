@@ -2,18 +2,16 @@ use std::f64::consts::PI;
 
 use glam::{Quat, Vec3};
 
-use crate::gl;
-
 pub struct Camera {
-    position: Vec3,
-    pitch: f32,
-    yaw: f32,
+    pub position: Vec3,
+    pub pitch: f32,
+    pub yaw: f32,
 }
 
 impl Camera {
     pub fn new() -> Self {
         Camera {
-            position: Vec3::ZERO,
+            position: Vec3::new(3840.0, 10.0, 38670.0),
             pitch: 0.0,
             yaw: 0.0,
         }
@@ -34,13 +32,5 @@ impl Camera {
         self.position.x -= disp.x;
         self.position.z += disp.z;
         self.position.y += disp.y;
-    }
-
-    pub fn do_gl_transform(&self) {
-        unsafe {
-            gl::Rotatef(self.pitch, 1.0, 0.0, 0.0);
-            gl::Rotatef(self.yaw, 0.0, 1.0, 0.0);
-            gl::Translatef(-self.position.x, -self.position.y, -self.position.z);
-        }
     }
 }

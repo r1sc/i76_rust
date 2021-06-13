@@ -9,7 +9,7 @@ pub struct BWD2Tag {
 
 
 #[derive(Debug, Clone, Copy)]
-pub struct ColorRGB(u8, u8, u8);
+pub struct ColorRGB(pub u8, pub u8, pub u8);
 impl Readable for ColorRGB {
     fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let r = reader.read_u8()?;

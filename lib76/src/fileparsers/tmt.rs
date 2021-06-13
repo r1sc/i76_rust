@@ -1,4 +1,4 @@
-use super::binary_reader::Readable;
+use super::binary_reader::{BinaryReader, Readable};
 
 pub struct TMT {
     pub unk1: u32,
@@ -23,7 +23,7 @@ pub struct TMT {
 }
 
 impl Readable for TMT {
-    fn consume(reader: &mut super::binary_reader::BinaryReader) -> Result<Self, std::io::Error>
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
     where
         Self: Sized,
     {

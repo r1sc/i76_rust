@@ -1,4 +1,4 @@
-use super::binary_reader::Readable;
+use super::binary_reader::{BinaryReader, Readable};
 
 pub struct VCF {
     pub vcfc: VCFC,
@@ -6,7 +6,7 @@ pub struct VCF {
 }
 
 impl Readable for VCF {
-    fn consume(reader: &mut super::binary_reader::BinaryReader) -> Result<Self, std::io::Error> where
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> where
         Self: Sized {
             let mut vcfc: Option<VCFC> = None;
             let mut wepns: Vec<WEPN> = vec![];
@@ -51,7 +51,7 @@ pub struct VCFC {
     pub armor_or_chassis_left_to_add: u32,
 }
 impl Readable for VCFC {
-    fn consume(reader: &mut super::binary_reader::BinaryReader) -> Result<Self, std::io::Error> where
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> where
         Self: Sized {
         let variant_name = reader.read_fixed(16)?;
         let vdf_filename = reader.read_fixed(13)?;
@@ -99,7 +99,7 @@ pub struct WEPN {
     pub gdf_filename: String, // 13
 }
 impl Readable for WEPN {
-    fn consume(reader: &mut super::binary_reader::BinaryReader) -> Result<Self, std::io::Error> where
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> where
         Self: Sized {
         let mount_point = reader.read_u32()?;
         let gdf_filename = reader.read_fixed(13)?;
