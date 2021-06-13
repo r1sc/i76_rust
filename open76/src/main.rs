@@ -4,9 +4,9 @@ mod frustum;
 mod gl;
 mod render_graph;
 mod smacker_player;
+mod terrain;
 mod texture_loader;
 mod virtual_fs;
-mod terrain;
 
 use std::{path::Path, time::Instant};
 
@@ -17,15 +17,21 @@ use glfw::{
     Action, Context,
 };
 
-use lib76::fileparsers::{msn::ODEFObj, ter::TER, tmt::TMT, vtf::VTF};
 use lib76::{
     clut::LUT,
     fileparsers::{self, cbk::CBK, map::Map, msn::MSN, vcf::VCF, vdf::VDF, vqm::VQM, Geo},
 };
+use lib76::{
+    fileparsers::{msn::ODEFObj, ter::TER, tmt::TMT, vtf::VTF},
+    math,
+};
 
 use texture_loader::load_gl_texture;
 
-use crate::{render_graph::{GeoNode, RenderMode}, terrain::{get_terrain_block_at, render_block}};
+use crate::{
+    render_graph::{GeoNode, RenderMode},
+    terrain::{get_terrain_block_at, render_block},
+};
 
 fn load_vcf(vcf_filename: &str) -> Result<(VCF, VDF, VTF), std::io::Error> {
     let vcf: fileparsers::vcf::VCF =
@@ -193,7 +199,20 @@ fn main() -> Result<(), std::io::Error> {
 
     println!("...done");
 
-    let terrain_block = get_terrain_block_at(&ter, &msn.tdef.zmap.zone_references, 57, 5);      
+    let terrain_block = get_terrain_block_at(&ter, &msn.tdef.zmap.zone_references, 57, 5);
+
+    fn rotate_by_xyz(x_vector: &math::Vec3, y_vector: &math::Vec3, z_vector: &math::Vec3) {
+        let mat = [
+            x_vector.0, y_vector.0, z_vector.0, 0.0, 
+            x_vector.1, y_vector.1, z_vector.1, 0.0,
+            -x_vector.2, -y_vector.2, -z_vector.2, 0.0, 
+            0.0, 0.0, 0.0, 1.0,
+        ];
+
+        unsafe {
+            gl::MultMatrixf(mat.as_ptr());
+        }
+    }
 
     let (mut ox, mut oy) = (0.0, 0.0);
     let mut last_time = Instant::now();
@@ -225,18 +244,18 @@ fn main() -> Result<(), std::io::Error> {
             gl::Color3f(1.0, 1.0, 1.0);
             gl::Begin(gl::QUADS);
             gl::TexCoord2d(sky_drift, 0.0);
-            gl::Vertex3f(-100.0, 1.0, -100.0);
-            gl::TexCoord2d(sky_drift + 100.0, 0.0);
-            gl::Vertex3f(100.0, 1.0, -100.0);
-            gl::TexCoord2d(sky_drift + 100.0, 100.0);
-            gl::Vertex3f(100.0, 1.0, 100.0);
-            gl::TexCoord2d(sky_drift, 100.0);
             gl::Vertex3f(-100.0, 1.0, 100.0);
+            gl::TexCoord2d(sky_drift + 100.0, 0.0);
+            gl::Vertex3f(100.0, 1.0, 100.0);
+            gl::TexCoord2d(sky_drift + 100.0, 100.0);
+            gl::Vertex3f(100.0, 1.0, -100.0);
+            gl::TexCoord2d(sky_drift, 100.0);
+            gl::Vertex3f(-100.0, 1.0, -100.0);
             gl::End();
 
             gl::PopMatrix();
 
-            gl::Translatef(-camera.position.x, -camera.position.y, -camera.position.z);
+            gl::Translatef(-camera.position.x, -camera.position.y, camera.position.z);
 
             gl::Enable(gl::CULL_FACE);
             gl::Enable(gl::ALPHA_TEST);
@@ -250,7 +269,12 @@ fn main() -> Result<(), std::io::Error> {
                 gl::Translatef(
                     object.2.position.0,
                     object.2.position.1,
-                    object.2.position.2,
+                    -object.2.position.2,
+                );
+                rotate_by_xyz(
+                    &object.2.rotation.right,
+                    &object.2.rotation.up,
+                    &object.2.rotation.forward,
                 );
 
                 render_graph::draw_graph(
@@ -296,6 +320,11 @@ fn main() -> Result<(), std::io::Error> {
             x_disp = 1.0;
         }
 
+        if window.get_key(glfw::Key::LeftShift) == Action::Press {
+            x_disp *= 10.0;
+            z_disp *= 10.0;
+        }
+
         camera.translate((z_disp * 10.0 * secs) as f32, (x_disp * 10.0 * secs) as f32);
 
         let (x, y) = window.get_cursor_pos();
@@ -304,8 +333,12 @@ fn main() -> Result<(), std::io::Error> {
         oy = y;
 
         camera.turn((dx * 2.0) as f32, (dy * 2.0) as f32, secs as f32);
+
+        window.set_title(&format!(
+            "{}, {}, {}",
+            &camera.position.x, &camera.position.y, &camera.position.z
+        ));
     }
 
     return Ok(());
 }
-

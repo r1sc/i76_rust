@@ -135,7 +135,7 @@ fn draw_geo(
                 gl::Color3ub(r, g, b);
                 gl::TexCoord2f(u, v);
                 gl::Normal3f(nx, ny, nz);
-                gl::Vertex3f(-x, y, z);
+                gl::Vertex3f(x, y, z);
             }
             gl::End();
         }
@@ -153,7 +153,7 @@ pub fn draw_graph(
         unsafe {
             gl::PushMatrix();
             gl::Translatef(
-                -part.local_position.0,
+                part.local_position.0,
                 part.local_position.1,
                 part.local_position.2,
             );

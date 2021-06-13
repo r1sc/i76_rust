@@ -11,7 +11,7 @@ pub struct Camera {
 impl Camera {
     pub fn new() -> Self {
         Camera {
-            position: Vec3::new(3840.0, 10.0, 38670.0),
+            position: Vec3::new(3337.0, 10.71, 35872.0),
             pitch: 0.0,
             yaw: 0.0,
         }
@@ -27,10 +27,11 @@ impl Camera {
 
         let quat = Quat::from_rotation_y((self.yaw + 180.0) * deg_to_rad)
             * Quat::from_rotation_x((self.pitch + 180.0) * deg_to_rad);
+
         let disp = (quat * -Vec3::Z * z_delta) + (quat * Vec3::X * x_delta);
 
         self.position.x -= disp.x;
-        self.position.z += disp.z;
+        self.position.z -= disp.z;
         self.position.y += disp.y;
     }
 }

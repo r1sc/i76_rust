@@ -17,6 +17,7 @@ pub fn get_terrain_block_at<'a, 'b>(
     Some(points)
 }
 
+
 pub fn render_block(points: Option<&Vec<u16>>) {
     let get_point = |x: u32, z: u32| match points {
         Some(points) => {
