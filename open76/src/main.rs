@@ -19,8 +19,10 @@ use glfw::{
 };
 
 use lib76::{
-    clut::LUT,
-    fileparsers::{self, cbk::CBK, map::Map, msn::MSN, vcf::VCF, vdf::VDF, vqm::VQM, Geo},
+    clut::{self, LUT},
+    fileparsers::{
+        self, act::ACT, cbk::CBK, map::Map, msn::MSN, vcf::VCF, vdf::VDF, vqm::VQM, Geo,
+    },
 };
 use lib76::{
     fileparsers::{msn::ODEFObj, ter::TER, tmt::TMT, vtf::VTF},
@@ -29,9 +31,7 @@ use lib76::{
 
 use texture_loader::load_gl_texture;
 
-use crate::{
-    render_graph::{GeoNode, RenderMode},
-};
+use crate::render_graph::{GeoNode, RenderMode};
 
 fn load_vcf(vcf_filename: &str) -> Result<(VCF, VDF, VTF), std::io::Error> {
     let vcf: fileparsers::vcf::VCF =
@@ -83,7 +83,7 @@ fn build_texture_cache<'a>(cbk_cache: &'a mut FileCache<CBK>) -> FileCache<'a, G
                 Some(load_gl_texture(
                     map.width,
                     map.height,
-                    &map.to_rgba_pixels(&LUT),
+                    &map.to_rgba_pixels(&LUT, None),
                 ))
             }
             (false, false) => None,
@@ -110,8 +110,8 @@ fn main() -> Result<(), std::io::Error> {
     let mut tmt_cache = build_tmt_cache();
 
     println!("Loading data");
-    let msn: MSN = virtual_fs::load("E:/i76/MISSIONS/T01.msn")?;
-
+    let msn: MSN = virtual_fs::load("E:/i76/MISSIONS/A01.msn")?;
+    let act: ACT = virtual_fs::load(&format!("E:/i76/extracted/{}", &msn.wrld.act_filename))?;
     let ter: TER = virtual_fs::load(&format!("E:/i76/MISSIONS/{}", &msn.tdef.zone.ter_filename))?;
 
     let objects = msn
@@ -122,15 +122,15 @@ fn main() -> Result<(), std::io::Error> {
                 let (vcf, vdf, vtf) = load_vcf(&format!("{}.vcf", &o.label[..]))?;
                 println!(
                     "Building render graph for {} {}",
-                    vdf.vdfc.name, vcf.vcfc.variant_name
+                    &vdf.vdfc.name, &vcf.vcfc.variant_name
                 );
                 let vdf_graph =
                     render_graph::from(vdf.vgeo.third_person_parts[0][0].iter(), &mut geo_cache)?;
                 Ok((vdf_graph, RenderMode::Vehicle(vtf), o))
             } else {
                 let sdf: fileparsers::SDF =
-                    virtual_fs::load(&format!("E:/i76/extracted/{}.sdf", o.label))?;
-                println!("Building render graph for {}", sdf.sdfc.name);
+                    virtual_fs::load(&format!("E:/i76/extracted/{}.sdf", &o.label))?;
+                println!("Building render graph for {} ({})", &sdf.sdfc.name, &o.label);
                 let graph = render_graph::from(
                     sdf.sgeo.lod_levels[0].lod_parts.iter().map(|a| &a.geo_part),
                     &mut &mut geo_cache,
@@ -194,17 +194,19 @@ fn main() -> Result<(), std::io::Error> {
 
         gl::Enable(gl::DEPTH_TEST);
         gl::Enable(gl::TEXTURE_2D);
-        
 
         gl::ClearColor(0.0, 0.0, 0.0, 1.0);
 
         gl::Enable(gl::LIGHTING);
         gl::Enable(gl::LIGHT0);
         gl::Lightfv(gl::LIGHT0, gl::DIFFUSE, [1.0, 1.0, 1.0, 1.0].as_ptr());
-        gl::Lightfv(gl::LIGHT0, gl::AMBIENT, [0.5, 0.5, 0.5, 1.0].as_ptr());
+        gl::Lightfv(gl::LIGHT0, gl::AMBIENT, [0.9, 0.8, 0.8, 1.0].as_ptr());        
     }
 
     println!("...done");
+
+    let surface_texture = load_texture_with_act(&msn.wrld.surface_texture_filename, &act)?;
+    let sky_texture = load_texture_with_act(&msn.wrld.sky_texture_filename, &act)?;
 
     fn rotate_by_xyz(x_vector: &math::Vec3, y_vector: &math::Vec3, z_vector: &math::Vec3) {
         let mat = [
@@ -250,15 +252,14 @@ fn main() -> Result<(), std::io::Error> {
             gl::Disable(gl::LIGHTING);
             gl::Disable(gl::DEPTH_TEST);
             gl::Disable(gl::ALPHA_TEST);
+            // gl::Disable(gl::COLOR_MATERIAL);
             gl::Enable(gl::TEXTURE_2D);
 
             gl::PushMatrix();
 
-            texture_cache
-                .get(&msn.wrld.sky_texture_filename)
-                .map(|tex| gl::BindTexture(gl::TEXTURE_2D, **tex));
+            gl::BindTexture(gl::TEXTURE_2D, sky_texture);
 
-            gl::Color3f(1.0, 1.0, 1.0);
+            gl::Color4f(1.0, 1.0, 1.0, 1.0);
             gl::Begin(gl::QUADS);
             gl::TexCoord2d(sky_drift, 0.0);
             gl::Vertex3f(-100.0, 1.0, -100.0);
@@ -277,21 +278,30 @@ fn main() -> Result<(), std::io::Error> {
             gl::Enable(gl::CULL_FACE);
             gl::Enable(gl::ALPHA_TEST);
             gl::Enable(gl::LIGHTING);
-            gl::Enable(gl::DEPTH_TEST);            
-            
+            gl::Enable(gl::DEPTH_TEST);
+
             gl::Lightfv(gl::LIGHT0, gl::POSITION, light_pos);
 
-            
             gl::Enable(gl::POLYGON_OFFSET_FILL);
             gl::PolygonOffset(5.0, 1.0);
 
-            texture_cache
-                .get(&msn.wrld.surface_texture_filename)
-                .map(|tex| gl::BindTexture(gl::TEXTURE_2D, **tex));
-                
-            terrain::render_terrain(&msn.tdef.zmap,&ter, camera.position.x, camera.position.z, 50);
+            // texture_cache
+            //     .get(&msn.wrld.surface_texture_filename)
+            //     .map(|tex| gl::BindTexture(gl::TEXTURE_2D, **tex));
+
+            gl::BindTexture(gl::TEXTURE_2D, surface_texture);
+
+            terrain::render_terrain(
+                &msn.tdef.zmap,
+                &ter,
+                camera.position.x,
+                camera.position.z,
+                100,
+            );
 
             gl::Disable(gl::POLYGON_OFFSET_FILL);
+            // gl::ColorMaterial(gl::FRONT, gl::AMBIENT_AND_DIFFUSE);
+            // gl::Enable(gl::COLOR_MATERIAL);
 
             for object in &objects {
                 gl::PushMatrix();
@@ -315,8 +325,6 @@ fn main() -> Result<(), std::io::Error> {
                 );
                 gl::PopMatrix();
             }
-
-            
         }
 
         window.swap_buffers();
@@ -365,4 +373,17 @@ fn main() -> Result<(), std::io::Error> {
     }
 
     return Ok(());
+}
+
+fn load_texture_with_act(filename: &str, act: &ACT) -> Result<GLuint, std::io::Error> {
+    let surface_texture_rgba: Map = virtual_fs::load(&format!(
+        "E:/i76/extracted/{}",
+        filename
+    ))?;
+    
+    Ok(load_gl_texture(
+        surface_texture_rgba.width,
+        surface_texture_rgba.height,
+        &surface_texture_rgba.to_rgba_pixels(&clut::LUT, Some(&act))
+    ))
 }

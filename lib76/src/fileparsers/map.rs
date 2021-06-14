@@ -1,4 +1,4 @@
-use super::binary_reader::{BinaryReader, Readable};
+use super::{act::ACT, binary_reader::{BinaryReader, Readable}, common::ColorRGB};
 
 pub struct Map {
     pub width: u32,
@@ -20,15 +20,23 @@ impl Readable for Map {
 }
 
 impl Map {
-    pub fn to_rgba_pixels(&self, lut: &[u32; 256]) -> Vec<u32> {
+    pub fn to_rgba_pixels(&self, lut: &[u32; 256], act: Option<&ACT>) -> Vec<u32> {
         self.clut_refs
             .iter()
             .map(|clut_ref| {
-                if clut_ref == &0xffu8 {
-                    0
-                } else {
-                    let rgb = lut[*clut_ref as usize];
-                    (255 << 24) | rgb
+                match act {
+                    Some(a) => {
+                        let rgb = a.entries[*clut_ref as usize];
+                        (255 << 24) | ((rgb.0 as u32) << 16) | ((rgb.1 as u32) << 8) | (rgb.2 as u32)
+                    },
+                    None => {
+                        if clut_ref == &0xffu8 {
+                            0
+                        } else {
+                            let rgb = lut[*clut_ref as usize];
+                            (255 << 24) | rgb
+                        }
+                    }
                 }
             })
             .collect()

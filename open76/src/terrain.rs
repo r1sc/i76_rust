@@ -31,7 +31,7 @@ pub fn render_terrain(zmap: &ZMAP, ter: &TER, camera_x: f32, camera_z: f32, cell
 
                     let height = heightmap_point & 0xfff;
                     let height_unscaled = (height as f32) / 4096.0;
-                    let height_scaled = height_unscaled * 409.0; // TODO: Investigate
+                    let height_scaled = height_unscaled * 409.6; // TODO: Investigate
                     height_scaled
                 }
                 None => 0.0, // Block doesn't exist, return default height
@@ -58,20 +58,19 @@ pub fn render_terrain(zmap: &ZMAP, ter: &TER, camera_x: f32, camera_z: f32, cell
             let p3 = get_height_at_relative_cell(x + 1, z);
 
             let v1 = Vec3::new(x as f32, p1, z as f32);
-            let v2 = Vec3::new(x as f32, p2, (z + 1) as f32);
-            let v3 = Vec3::new((x + 1) as f32, p3, z as f32);
+            let v2 = Vec3::new(x as f32, p2, (z + 5) as f32);
+            let v3 = Vec3::new((x + 5) as f32, p3, z as f32);
 
             let v1v2 = v2 - v1;
             let v1v3 = v3 - v1;
             let n = v1v2.cross(v1v3).normalize();
 
-
             unsafe {
-                gl::TexCoord2f(world_x, world_z2);
+                gl::TexCoord2f(world_x / 5.0, world_z2 / 5.0);
                 gl::Normal3f(n.x, n.y, n.z);
                 gl::Vertex3f(world_x, p2, -world_z2);
 
-                gl::TexCoord2f(world_x, world_z1);
+                gl::TexCoord2f(world_x / 5.0, world_z1 / 5.0);
                 gl::Normal3f(n.x, n.y, n.z);
                 gl::Vertex3f(world_x, p1, -world_z1);
             }

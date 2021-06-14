@@ -7,9 +7,9 @@ typedef unsigned __int16 uint16_t;
 struct GeoFace {
 uint32_t index;
 uint32_t num_vertices;
-char r;
-char g;
-char b;
+unsigned char r;
+unsigned char g;
+unsigned char b;
 float nx;
 float ny;
 float nz;

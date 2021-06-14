@@ -1,7 +1,20 @@
 use std::rc::Rc;
 
-use lib76::{fileparsers::{self, Geo, bwd2::GEOPart, common::{ColorRGB, RotationAxis}, tmt::TMT, vtf::VTF}, math::Vec3};
-use crate::{cache::{self, FileCache}, gl::{self, types::GLuint}};
+use crate::{
+    cache::{self, FileCache},
+    gl::{self, types::GLuint},
+};
+use lib76::{
+    fileparsers::{
+        self,
+        bwd2::GEOPart,
+        common::{ColorRGB, RotationAxis},
+        tmt::TMT,
+        vtf::VTF,
+        Geo,
+    },
+    math::Vec3,
+};
 
 pub struct GeoNode {
     pub name: String,
@@ -11,9 +24,12 @@ pub struct GeoNode {
     pub children: Vec<GeoNode>,
 }
 
-pub fn from<'a, T>(parts: T, geo_cache: &'a mut FileCache<Geo>) -> Result<Vec<GeoNode>, std::io::Error>
-where 
-T : Iterator<Item=&'a GEOPart>
+pub fn from<'a, T>(
+    parts: T,
+    geo_cache: &'a mut FileCache<Geo>,
+) -> Result<Vec<GeoNode>, std::io::Error>
+where
+    T: Iterator<Item = &'a GEOPart>,
 {
     let mut root_children: Vec<GeoNode> = vec![];
 
@@ -21,9 +37,8 @@ T : Iterator<Item=&'a GEOPart>
         if part.name == "NULL" {
             continue;
         }
-        
-        let geo = geo_cache.get(&part.name[..]).unwrap();
 
+        let geo = geo_cache.get(&part.name[..]).unwrap();
 
         let node = GeoNode {
             geo: geo.clone(),
@@ -56,7 +71,7 @@ T : Iterator<Item=&'a GEOPart>
                     parent.children.push(node);
                 }
                 None => {
-                    root_children.push(node); 
+                    root_children.push(node);
                     println!("Cannot find parent {}", &part.relative_to[..]);
                 }
             }
@@ -66,12 +81,10 @@ T : Iterator<Item=&'a GEOPart>
     Ok(root_children)
 }
 
-
 pub enum RenderMode {
     SGEO,
     Vehicle(VTF),
 }
-
 
 fn draw_geo(
     geo: &fileparsers::Geo,
@@ -111,6 +124,8 @@ fn draw_geo(
                 texture_cache
                     .get(texture_name)
                     .map(|tex| gl::BindTexture(gl::TEXTURE_2D, **tex));
+
+
             } else {
                 gl::BindTexture(gl::TEXTURE_2D, 0);
             }
@@ -121,6 +136,9 @@ fn draw_geo(
                 gl::Disable(gl::ALPHA_TEST);
             }
 
+            let ColorRGB(r, g, b) = face.color;
+            gl::Color4f((r as f32) / 255.0, (g as f32) / 255.0, (b as f32) / 255.0, 1.0);
+
             gl::Begin(gl::TRIANGLE_FAN);
             for v in &face.vertex_refs {
                 let Vec3(x, y, z) = geo.vertices[v.vertex_index as usize];
@@ -130,9 +148,7 @@ fn draw_geo(
                     geo.normals[v.normal_index as usize]
                 };
                 let (u, v) = v.uv;
-                let ColorRGB(r, g, b) = face.color;
 
-                gl::Color3ub(r, g, b);
                 gl::TexCoord2f(u, v);
                 gl::Normal3f(nx, ny, nz);
                 gl::Vertex3f(x, y, z);
