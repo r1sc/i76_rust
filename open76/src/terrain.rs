@@ -1,56 +1,83 @@
-use lib76::fileparsers::ter::TER;
+use glam::Vec3;
+use lib76::fileparsers::{msn::ZMAP, ter::TER};
 
 use crate::gl;
 
-pub fn get_block_position_at(x: f32, z: f32) -> (u32, u32) {
-    ((x as u32) / 640, (z as u32) / 640)
-}
+pub fn render_terrain(zmap: &ZMAP, ter: &TER, camera_x: f32, camera_z: f32, cells_wide: u32) {
+    let camera_cell_x = (camera_x as u32) / 5;
+    let camera_cell_z = (camera_z as u32) / 5;
 
-pub fn get_terrain_block_at<'a, 'b>(
-    ter: &'b TER,
-    zone_references: &'a Vec<Vec<u8>>,
-    x: u32,
-    z: u32,
-) -> Option<&'b Vec<u16>> {
-    let block_ref = zone_references.get(x as usize)?.get(z as usize)?;
-    let points = ter.entries.get(*block_ref as usize)?;
-    Some(points)
-}
+    let get_height_at_relative_cell = move |x: i32, z: i32| {
+        let absolute_x = (camera_cell_x as i32) + x;
+        let absolute_z = (camera_cell_z as i32) + z;
 
+        let block_x = absolute_x / 128;
+        let block_z = absolute_z / 128;
 
-pub fn render_block(points: Option<&Vec<u16>>) {
-    let get_point = |x: u32, z: u32| match points {
-        Some(points) => {
-            let p = match points.get((z * 128 + x) as usize) {
-                Some(p) => *p,
-                None => 0xff,
-            };
+        let block = zmap
+            .zone_references
+            .get((block_z * 80 + block_x) as usize)
+            .unwrap_or(&0xFF);
+        if *block == 0xFF {
+            0.0 // Block out of bounds, return default height
+        } else {
+            match ter.entries.get(*block as usize) {
+                Some(block_heights) => {
+                    let relative_x = absolute_x % 128;
+                    let relative_z = absolute_z % 128;
+                    let heightmap_point = block_heights
+                        .get((relative_z * 128 + relative_x) as usize)
+                        .expect("Overflowed block, this shouldnt happen");
 
-            let height = p & 0xfff;
-            let height_unscaled = (height as f32) / 4096.0;
-            let height_scaled = height_unscaled * 100.0;
-            height_scaled
+                    let height = heightmap_point & 0xfff;
+                    let height_unscaled = (height as f32) / 4096.0;
+                    let height_scaled = height_unscaled * 409.0; // TODO: Investigate
+                    height_scaled
+                }
+                None => 0.0, // Block doesn't exist, return default height
+            }
         }
-        None => 0.0,
     };
 
-    unsafe {
-        for z in 0..127 {
+    let cells_wide_i = cells_wide as i32;
+
+    for z in -cells_wide_i..cells_wide_i {
+        unsafe {
             gl::Begin(gl::TRIANGLE_STRIP);
-            for x in 0..128 {
-                let p1 = get_point(x, z);
-                let p2 = get_point(x, z + 1);
-                gl::TexCoord2f(x as f32, z as f32);
-                gl::Vertex3f(x as f32, p1, z as f32);
-                gl::TexCoord2f(x as f32, (z + 1) as f32);
-                gl::Vertex3f(x as f32, p2, (z + 1) as f32);
+        }
+        for x in -cells_wide_i..cells_wide_i {
+            let p1 = get_height_at_relative_cell(x, z);
+
+            let world_x = (((camera_cell_x as i32) + x) * 5) as f32;
+            let world_z1 = (((camera_cell_z as i32) + z) * 5) as f32;
+
+            let p2 = get_height_at_relative_cell(x, z + 1);
+
+            let world_z2 = (((camera_cell_z as i32) + z + 1) * 5) as f32;
+
+            let p3 = get_height_at_relative_cell(x + 1, z);
+
+            let v1 = Vec3::new(x as f32, p1, z as f32);
+            let v2 = Vec3::new(x as f32, p2, (z + 1) as f32);
+            let v3 = Vec3::new((x + 1) as f32, p3, z as f32);
+
+            let v1v2 = v2 - v1;
+            let v1v3 = v3 - v1;
+            let n = v1v2.cross(v1v3).normalize();
+
+
+            unsafe {
+                gl::TexCoord2f(world_x, world_z2);
+                gl::Normal3f(n.x, n.y, n.z);
+                gl::Vertex3f(world_x, p2, -world_z2);
+
+                gl::TexCoord2f(world_x, world_z1);
+                gl::Normal3f(n.x, n.y, n.z);
+                gl::Vertex3f(world_x, p1, -world_z1);
             }
+        }
+        unsafe {
             gl::End();
         }
     }
 }
-
-// fn render_terrain(camera_x: f32, camera_z: f32, ter: &TER, zone_references: &Vec<Vec<u8>>) {
-//     let (block_position_x, block_position_z) = get_block_position_at(camera_x, camera_z);
-//     todo!()
-// }

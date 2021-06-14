@@ -12,6 +12,7 @@ use std::{path::Path, time::Instant};
 
 use cache::FileCache;
 use gl::types::GLuint;
+use glam::Vec3;
 use glfw::{
     ffi::{glfwSetFramebufferSizeCallback, GLFWwindow},
     Action, Context,
@@ -30,7 +31,6 @@ use texture_loader::load_gl_texture;
 
 use crate::{
     render_graph::{GeoNode, RenderMode},
-    terrain::{get_terrain_block_at, render_block},
 };
 
 fn load_vcf(vcf_filename: &str) -> Result<(VCF, VDF, VTF), std::io::Error> {
@@ -141,6 +141,12 @@ fn main() -> Result<(), std::io::Error> {
         .collect::<Result<Vec<(Vec<GeoNode>, render_graph::RenderMode, &ODEFObj)>, std::io::Error>>(
         )?;
 
+    camera.position = objects
+        .iter()
+        .find(|o| o.2.label == "vppirna1")
+        .map(|o| Vec3::new(o.2.position.0, o.2.position.1 + 10.0, o.2.position.2))
+        .unwrap_or(Vec3::ZERO);
+
     println!("Starting GLFW...");
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
@@ -188,6 +194,7 @@ fn main() -> Result<(), std::io::Error> {
 
         gl::Enable(gl::DEPTH_TEST);
         gl::Enable(gl::TEXTURE_2D);
+        
 
         gl::ClearColor(0.0, 0.0, 0.0, 1.0);
 
@@ -199,14 +206,24 @@ fn main() -> Result<(), std::io::Error> {
 
     println!("...done");
 
-    let terrain_block = get_terrain_block_at(&ter, &msn.tdef.zmap.zone_references, 57, 5);
-
     fn rotate_by_xyz(x_vector: &math::Vec3, y_vector: &math::Vec3, z_vector: &math::Vec3) {
         let mat = [
-            x_vector.0, y_vector.0, z_vector.0, 0.0, 
-            x_vector.1, y_vector.1, z_vector.1, 0.0,
-            -x_vector.2, -y_vector.2, -z_vector.2, 0.0, 
-            0.0, 0.0, 0.0, 1.0,
+            x_vector.0,
+            y_vector.0,
+            z_vector.0,
+            0.0,
+            x_vector.1,
+            y_vector.1,
+            z_vector.1,
+            0.0,
+            -x_vector.2,
+            -y_vector.2,
+            -z_vector.2,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
         ];
 
         unsafe {
@@ -244,13 +261,13 @@ fn main() -> Result<(), std::io::Error> {
             gl::Color3f(1.0, 1.0, 1.0);
             gl::Begin(gl::QUADS);
             gl::TexCoord2d(sky_drift, 0.0);
-            gl::Vertex3f(-100.0, 1.0, 100.0);
-            gl::TexCoord2d(sky_drift + 100.0, 0.0);
-            gl::Vertex3f(100.0, 1.0, 100.0);
-            gl::TexCoord2d(sky_drift + 100.0, 100.0);
-            gl::Vertex3f(100.0, 1.0, -100.0);
-            gl::TexCoord2d(sky_drift, 100.0);
             gl::Vertex3f(-100.0, 1.0, -100.0);
+            gl::TexCoord2d(sky_drift + 100.0, 0.0);
+            gl::Vertex3f(100.0, 1.0, -100.0);
+            gl::TexCoord2d(sky_drift + 100.0, 100.0);
+            gl::Vertex3f(100.0, 1.0, 100.0);
+            gl::TexCoord2d(sky_drift, 100.0);
+            gl::Vertex3f(-100.0, 1.0, 100.0);
             gl::End();
 
             gl::PopMatrix();
@@ -259,10 +276,22 @@ fn main() -> Result<(), std::io::Error> {
 
             gl::Enable(gl::CULL_FACE);
             gl::Enable(gl::ALPHA_TEST);
-            gl::Enable(gl::DEPTH_TEST);
             gl::Enable(gl::LIGHTING);
-
+            gl::Enable(gl::DEPTH_TEST);            
+            
             gl::Lightfv(gl::LIGHT0, gl::POSITION, light_pos);
+
+            
+            gl::Enable(gl::POLYGON_OFFSET_FILL);
+            gl::PolygonOffset(5.0, 1.0);
+
+            texture_cache
+                .get(&msn.wrld.surface_texture_filename)
+                .map(|tex| gl::BindTexture(gl::TEXTURE_2D, **tex));
+                
+            terrain::render_terrain(&msn.tdef.zmap,&ter, camera.position.x, camera.position.z, 50);
+
+            gl::Disable(gl::POLYGON_OFFSET_FILL);
 
             for object in &objects {
                 gl::PushMatrix();
@@ -287,12 +316,7 @@ fn main() -> Result<(), std::io::Error> {
                 gl::PopMatrix();
             }
 
-            texture_cache
-                .get(&msn.wrld.surface_texture_filename)
-                .map(|tex| gl::BindTexture(gl::TEXTURE_2D, **tex));
-
-            gl::Translatef(3840.0, 10.0, 38670.0);
-            render_block(terrain_block);
+            
         }
 
         window.swap_buffers();

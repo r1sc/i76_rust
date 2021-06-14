@@ -333,7 +333,7 @@ impl Readable for TREV {
 
 pub struct ZMAP {
     pub num_active_zones: u8,
-    pub zone_references: Vec<Vec<u8>>, // 80 * 80
+    pub zone_references: Vec<u8>, // 80 * 80
 }
 impl Readable for ZMAP {
     fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
@@ -341,9 +341,7 @@ impl Readable for ZMAP {
         Self: Sized,
     {
         let num_active_zones = reader.read_u8()?;
-        let zone_references = (0..80)
-            .map(|_| reader.bytes(80))
-            .collect::<Result<Vec<Vec<u8>>, std::io::Error>>()?;
+        let zone_references =reader.bytes((80 * 80) as usize)?;
         Ok(Self {
             num_active_zones,
             zone_references,
