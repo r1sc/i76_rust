@@ -1,5 +1,6 @@
+use glam::Vec3;
+
 use super::{binary_reader::{BinaryReader, Readable}, common::RotationAxis};
-use crate::math::Vec3;
 
 /*
 ********************************* Common Tags

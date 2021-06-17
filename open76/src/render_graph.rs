@@ -4,16 +4,14 @@ use crate::{
     cache::{self, FileCache},
     gl::{self, types::GLuint},
 };
-use lib76::{
-    fileparsers::{
-        self,
-        bwd2::GEOPart,
-        common::{ColorRGB, RotationAxis},
-        tmt::TMT,
-        vtf::VTF,
-        Geo,
-    },
-    math::Vec3,
+use glam::{Vec3, Vec4Swizzles};
+use lib76::fileparsers::{
+    self,
+    bwd2::GEOPart,
+    common::{ColorRGB, RotationAxis},
+    tmt::TMT,
+    vtf::VTF,
+    Geo,
 };
 
 pub struct GeoNode {
@@ -124,8 +122,6 @@ fn draw_geo(
                 texture_cache
                     .get(texture_name)
                     .map(|tex| gl::BindTexture(gl::TEXTURE_2D, **tex));
-
-
             } else {
                 gl::BindTexture(gl::TEXTURE_2D, 0);
             }
@@ -137,21 +133,26 @@ fn draw_geo(
             }
 
             let ColorRGB(r, g, b) = face.color;
-            gl::Color4f((r as f32) / 255.0, (g as f32) / 255.0, (b as f32) / 255.0, 1.0);
+            gl::Color4f(
+                (r as f32) / 255.0,
+                (g as f32) / 255.0,
+                (b as f32) / 255.0,
+                1.0,
+            );
 
             gl::Begin(gl::TRIANGLE_FAN);
             for v in &face.vertex_refs {
-                let Vec3(x, y, z) = geo.vertices[v.vertex_index as usize];
-                let Vec3(nx, ny, nz) = if use_face_normals {
-                    Vec3(face.normal.0, face.normal.1, face.normal.2)
+                let vert = geo.vertices[v.vertex_index as usize];
+                let normal = if use_face_normals {
+                    face.normal.xyz()
                 } else {
                     geo.normals[v.normal_index as usize]
                 };
                 let (u, v) = v.uv;
 
                 gl::TexCoord2f(u, v);
-                gl::Normal3f(nx, ny, nz);
-                gl::Vertex3f(x, y, z);
+                gl::Normal3f(normal.x, -normal.y, normal.z);
+                gl::Vertex3f(vert.x, vert.y, vert.z);
             }
             gl::End();
         }
@@ -169,9 +170,9 @@ pub fn draw_graph(
         unsafe {
             gl::PushMatrix();
             gl::Translatef(
-                part.local_position.0,
-                part.local_position.1,
-                part.local_position.2,
+                part.local_position.x,
+                part.local_position.y,
+                part.local_position.z,
             );
             draw_geo(
                 &part.geo,

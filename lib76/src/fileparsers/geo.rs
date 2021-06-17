@@ -2,7 +2,7 @@ use super::{
     binary_reader::{BinaryReader, Readable},
     common::*,
 };
-use crate::math::*;
+use glam::{Vec3, Vec4};
 
 #[derive(Debug)]
 pub struct Geo {

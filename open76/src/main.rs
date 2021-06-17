@@ -12,21 +12,19 @@ use std::{path::Path, time::Instant};
 
 use cache::FileCache;
 use gl::types::GLuint;
-use glam::Vec3;
+use glam::{Mat4, Vec3, Vec4};
 use glfw::{
     ffi::{glfwSetFramebufferSizeCallback, GLFWwindow},
     Action, Context,
 };
 
 use lib76::{
-    clut::{self, LUT},
     fileparsers::{
         self, act::ACT, cbk::CBK, map::Map, msn::MSN, vcf::VCF, vdf::VDF, vqm::VQM, Geo,
     },
 };
 use lib76::{
     fileparsers::{msn::ODEFObj, ter::TER, tmt::TMT, vtf::VTF},
-    math,
 };
 
 use texture_loader::load_gl_texture;
@@ -56,7 +54,7 @@ fn build_cbk_cache<'a>() -> FileCache<'a, CBK> {
     })
 }
 
-fn build_texture_cache<'a>(cbk_cache: &'a mut FileCache<CBK>) -> FileCache<'a, GLuint> {
+fn build_texture_cache<'a>(cbk_cache: &'a mut FileCache<CBK>, act: &'a ACT) -> FileCache<'a, GLuint> {
     cache::FileCache::new(move |name| {
         let fixed_name = if name.to_ascii_lowercase().ends_with(".map") {
             &name[0..name.len() - 4]
@@ -74,7 +72,7 @@ fn build_texture_cache<'a>(cbk_cache: &'a mut FileCache<CBK>) -> FileCache<'a, G
                 Some(load_gl_texture(
                     vqm.width,
                     vqm.height,
-                    &vqm.to_rgba_pixels(cbk, &LUT),
+                    &vqm.to_rgba_pixels(cbk, act),
                 ))
             }
             (_, true) => {
@@ -83,7 +81,7 @@ fn build_texture_cache<'a>(cbk_cache: &'a mut FileCache<CBK>) -> FileCache<'a, G
                 Some(load_gl_texture(
                     map.width,
                     map.height,
-                    &map.to_rgba_pixels(&LUT, None),
+                    &map.to_rgba_pixels(act),
                 ))
             }
             (false, false) => None,
@@ -104,15 +102,16 @@ fn main() -> Result<(), std::io::Error> {
 
     let mut camera = camera::Camera::new();
 
-    let mut geo_cache = build_geo_cache();
-    let mut cbk_cache = build_cbk_cache();
-    let mut texture_cache = build_texture_cache(&mut cbk_cache);
-    let mut tmt_cache = build_tmt_cache();
-
     println!("Loading data");
-    let msn: MSN = virtual_fs::load("E:/i76/MISSIONS/A01.msn")?;
+    let msn: MSN = virtual_fs::load("E:/i76/MISSIONS/T01.msn")?;
     let act: ACT = virtual_fs::load(&format!("E:/i76/extracted/{}", &msn.wrld.act_filename))?;
     let ter: TER = virtual_fs::load(&format!("E:/i76/MISSIONS/{}", &msn.tdef.zone.ter_filename))?;
+
+    
+    let mut geo_cache = build_geo_cache();
+    let mut cbk_cache = build_cbk_cache();
+    let mut texture_cache = build_texture_cache(&mut cbk_cache, &act);
+    let mut tmt_cache = build_tmt_cache();
 
     let objects = msn
         .odef_objs
@@ -144,7 +143,7 @@ fn main() -> Result<(), std::io::Error> {
     camera.position = objects
         .iter()
         .find(|o| o.2.label == "vppirna1")
-        .map(|o| Vec3::new(o.2.position.0, o.2.position.1 + 10.0, o.2.position.2))
+        .map(|o| Vec3::new(o.2.position.x, o.2.position.y + 10.0, o.2.position.z))
         .unwrap_or(Vec3::ZERO);
 
     println!("Starting GLFW...");
@@ -161,14 +160,14 @@ fn main() -> Result<(), std::io::Error> {
 
     gl::load_with(|s| window.get_proc_address(s));
 
-    let light_pos = [0.0, 0.0, -50.0, 0.0].as_ptr();
+    let light_pos = Vec4::new(10.0, 10.0, 0.0, 0.0).to_array().as_ptr();
     unsafe {
         unsafe fn resize(w: i32, h: i32) {
             gl::MatrixMode(gl::PROJECTION);
             gl::LoadIdentity();
 
             let mut matrix = [0.0; 16];
-            frustum::glh_perspectivef2(&mut matrix, 60.0, w as f32 / h as f32, 0.1, 1000.0);
+            frustum::glh_perspectivef2(&mut matrix, 60.0, w as f32 / h as f32, 0.1, 500.0);
             gl::LoadMatrixf(matrix.as_ptr());
             gl::MatrixMode(gl::MODELVIEW);
         }
@@ -200,38 +199,13 @@ fn main() -> Result<(), std::io::Error> {
         gl::Enable(gl::LIGHTING);
         gl::Enable(gl::LIGHT0);
         gl::Lightfv(gl::LIGHT0, gl::DIFFUSE, [1.0, 1.0, 1.0, 1.0].as_ptr());
-        gl::Lightfv(gl::LIGHT0, gl::AMBIENT, [0.9, 0.8, 0.8, 1.0].as_ptr());        
+        gl::Lightfv(gl::LIGHT0, gl::AMBIENT, [0.5, 0.5, 0.5, 1.0].as_ptr());
     }
 
     println!("...done");
 
     let surface_texture = load_texture_with_act(&msn.wrld.surface_texture_filename, &act)?;
     let sky_texture = load_texture_with_act(&msn.wrld.sky_texture_filename, &act)?;
-
-    fn rotate_by_xyz(x_vector: &math::Vec3, y_vector: &math::Vec3, z_vector: &math::Vec3) {
-        let mat = [
-            x_vector.0,
-            y_vector.0,
-            z_vector.0,
-            0.0,
-            x_vector.1,
-            y_vector.1,
-            z_vector.1,
-            0.0,
-            -x_vector.2,
-            -y_vector.2,
-            -z_vector.2,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-        ];
-
-        unsafe {
-            gl::MultMatrixf(mat.as_ptr());
-        }
-    }
 
     let (mut ox, mut oy) = (0.0, 0.0);
     let mut last_time = Instant::now();
@@ -252,7 +226,6 @@ fn main() -> Result<(), std::io::Error> {
             gl::Disable(gl::LIGHTING);
             gl::Disable(gl::DEPTH_TEST);
             gl::Disable(gl::ALPHA_TEST);
-            // gl::Disable(gl::COLOR_MATERIAL);
             gl::Enable(gl::TEXTURE_2D);
 
             gl::PushMatrix();
@@ -284,11 +257,6 @@ fn main() -> Result<(), std::io::Error> {
 
             gl::Enable(gl::POLYGON_OFFSET_FILL);
             gl::PolygonOffset(5.0, 1.0);
-
-            // texture_cache
-            //     .get(&msn.wrld.surface_texture_filename)
-            //     .map(|tex| gl::BindTexture(gl::TEXTURE_2D, **tex));
-
             gl::BindTexture(gl::TEXTURE_2D, surface_texture);
 
             terrain::render_terrain(
@@ -296,25 +264,19 @@ fn main() -> Result<(), std::io::Error> {
                 &ter,
                 camera.position.x,
                 camera.position.z,
-                100,
+                50,
             );
 
             gl::Disable(gl::POLYGON_OFFSET_FILL);
-            // gl::ColorMaterial(gl::FRONT, gl::AMBIENT_AND_DIFFUSE);
-            // gl::Enable(gl::COLOR_MATERIAL);
 
             for object in &objects {
                 gl::PushMatrix();
                 gl::Translatef(
-                    object.2.position.0,
-                    object.2.position.1,
-                    -object.2.position.2,
+                    object.2.position.x,
+                    object.2.position.y,
+                    -object.2.position.z,
                 );
-                rotate_by_xyz(
-                    &object.2.rotation.right,
-                    &object.2.rotation.up,
-                    &object.2.rotation.forward,
-                );
+                gl::MultMatrixf(object.2.rotation.matrix.to_cols_array().as_ptr());
 
                 render_graph::draw_graph(
                     &object.0,
@@ -384,6 +346,6 @@ fn load_texture_with_act(filename: &str, act: &ACT) -> Result<GLuint, std::io::E
     Ok(load_gl_texture(
         surface_texture_rgba.width,
         surface_texture_rgba.height,
-        &surface_texture_rgba.to_rgba_pixels(&clut::LUT, Some(&act))
+        &surface_texture_rgba.to_rgba_pixels(&act)
     ))
 }

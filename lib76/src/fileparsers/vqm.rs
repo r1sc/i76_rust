@@ -1,7 +1,4 @@
-use super::{
-    binary_reader::{BinaryReader, Readable},
-    cbk::CBK,
-};
+use super::{act::ACT, binary_reader::{BinaryReader, Readable}, cbk::CBK};
 
 pub struct VQM {
     pub width: u32,
@@ -26,7 +23,7 @@ impl Readable for VQM {
 }
 
 impl VQM {
-    pub fn to_rgba_pixels(&self, cbk: &CBK, lut: &[u32; 256]) -> Vec<u32> {
+    pub fn to_rgba_pixels(&self, cbk: &CBK, act: &ACT) -> Vec<u32> {
         let mut rgba_texture: Vec<u32> = vec![0; (self.width * self.height) as usize];
 
         let mut x = 0;
@@ -58,7 +55,8 @@ impl VQM {
                     if lut_ref == 0xff {
                         rgba_texture[dest_index] = 0;
                     } else {
-                        rgba_texture[dest_index] = (255 << 24) | lut[lut_ref as usize];
+                        let rgb = act.entries[lut_ref as usize];
+                        rgba_texture[dest_index] = (255 << 24) | ((rgb.0 as u32) << 16) | ((rgb.1 as u32) << 8) | (rgb.2 as u32);
                     }
                 }
             }
