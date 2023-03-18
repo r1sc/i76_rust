@@ -1,18 +1,11 @@
 use std::rc::Rc;
 
 use crate::{
-    cache::{self, FileCache},
-    gl::{self, types::GLuint},
+    caches::{GeoCache, TMTCache, TextureCache},
+    gl::{self},
 };
 use glam::{Vec3, Vec4Swizzles};
-use lib76::fileparsers::{
-    self,
-    bwd2::GEOPart,
-    common::{ColorRGB, RotationAxis},
-    tmt::TMT,
-    vtf::VTF,
-    Geo,
-};
+use lib76::fileparsers::{self, bwd2::GEOPart, common::RotationAxis, vtf::VTF, Geo};
 
 pub struct GeoNode {
     pub name: String,
@@ -22,10 +15,7 @@ pub struct GeoNode {
     pub children: Vec<GeoNode>,
 }
 
-pub fn from<'a, T>(
-    parts: T,
-    geo_cache: &'a mut FileCache<Geo>,
-) -> Result<Vec<GeoNode>, std::io::Error>
+pub fn from<'a, T>(parts: T, geo_cache: &'a mut GeoCache) -> Result<Vec<GeoNode>, std::io::Error>
 where
     T: Iterator<Item = &'a GEOPart>,
 {
@@ -36,44 +26,44 @@ where
             continue;
         }
 
-        let geo = geo_cache.get(&part.name[..]).unwrap();
+        geo_cache.get(&part.name[..]).map(|geo| {
+            let node = GeoNode {
+                geo: geo.clone(),
+                name: part.name.clone(),
+                local_position: part.position,
+                axis: part.axis,
+                children: vec![],
+            };
 
-        let node = GeoNode {
-            geo: geo.clone(),
-            name: part.name.clone(),
-            local_position: part.position,
-            axis: part.axis,
-            children: vec![],
-        };
-
-        if part.relative_to == "WORLD" {
-            root_children.push(node);
-        } else {
-            fn find_parent<'a>(
-                children: &'a mut Vec<GeoNode>,
-                relative_to: &str,
-            ) -> Option<&'a mut GeoNode> {
-                for parent in children {
-                    if parent.name == relative_to {
-                        return Some(parent);
+            if part.relative_to == "WORLD" {
+                root_children.push(node);
+            } else {
+                fn find_parent<'a>(
+                    children: &'a mut Vec<GeoNode>,
+                    relative_to: &str,
+                ) -> Option<&'a mut GeoNode> {
+                    for parent in children {
+                        if parent.name == relative_to {
+                            return Some(parent);
+                        }
+                        match find_parent(&mut parent.children, relative_to) {
+                            Some(p) => return Some(p),
+                            None => {}
+                        }
                     }
-                    match find_parent(&mut parent.children, relative_to) {
-                        Some(p) => return Some(p),
-                        None => {}
+                    None
+                }
+                match find_parent(&mut root_children, &part.relative_to[..]) {
+                    Some(parent) => {
+                        parent.children.push(node);
                     }
-                }
-                None
-            }
-            match find_parent(&mut root_children, &part.relative_to[..]) {
-                Some(parent) => {
-                    parent.children.push(node);
-                }
-                None => {
-                    root_children.push(node);
-                    println!("Cannot find parent {}", &part.relative_to[..]);
+                    None => {
+                        root_children.push(node);
+                        println!("Cannot find parent {}", &part.relative_to[..]);
+                    }
                 }
             }
-        }
+        });
     }
 
     Ok(root_children)
@@ -86,11 +76,13 @@ pub enum RenderMode {
 
 fn draw_geo(
     geo: &fileparsers::Geo,
-    texture_cache: &mut cache::FileCache<GLuint>,
-    tmt_cache: &mut cache::FileCache<TMT>,
+    texture_cache: &mut TextureCache,
+    tmt_cache: &mut TMTCache,
     use_face_normals: bool,
     render_mode: &RenderMode,
+    ambient_color: &[f32; 4],
 ) {
+    let white: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
     for face in &geo.faces {
         unsafe {
             if face.texture_name != "" && face.texture_name != "V1 BO DY" {
@@ -122,8 +114,15 @@ fn draw_geo(
                 texture_cache
                     .get(texture_name)
                     .map(|tex| gl::BindTexture(gl::TEXTURE_2D, **tex));
+
+                // gl::Materialfv(gl::FRONT_AND_BACK, gl::AMBIENT, ambient_color.as_ptr());
+                gl::Materialfv(gl::FRONT_AND_BACK, gl::DIFFUSE, white.as_ptr());
             } else {
                 gl::BindTexture(gl::TEXTURE_2D, 0);
+                // gl::Materialfv(gl::FRONT_AND_BACK, gl::AMBIENT, white.as_ptr());
+                // gl::Materialfv(gl::FRONT_AND_BACK, gl::DIFFUSE, white.as_ptr());
+                let diffuse = face.color.to_vec3().extend(0.0).to_array();
+                gl::Materialfv(gl::FRONT_AND_BACK, gl::DIFFUSE, diffuse.as_ptr());
             }
 
             if (face.flags.1 & 4) == 4 {
@@ -131,14 +130,6 @@ fn draw_geo(
             } else {
                 gl::Disable(gl::ALPHA_TEST);
             }
-
-            let ColorRGB(r, g, b) = face.color;
-            gl::Color4f(
-                (r as f32) / 255.0,
-                (g as f32) / 255.0,
-                (b as f32) / 255.0,
-                1.0,
-            );
 
             gl::Begin(gl::TRIANGLE_FAN);
             for v in &face.vertex_refs {
@@ -161,10 +152,11 @@ fn draw_geo(
 
 pub fn draw_graph(
     root_children: &Vec<GeoNode>,
-    texture_cache: &mut cache::FileCache<GLuint>,
-    tmt_cache: &mut cache::FileCache<TMT>,
+    texture_cache: &mut TextureCache,
+    tmt_cache: &mut TMTCache,
     use_face_normals: bool,
     render_mode: &RenderMode,
+    ambient_color: &[f32; 4],
 ) {
     for part in root_children {
         unsafe {
@@ -180,6 +172,7 @@ pub fn draw_graph(
                 tmt_cache,
                 use_face_normals,
                 render_mode,
+                ambient_color,
             );
 
             draw_graph(
@@ -188,6 +181,7 @@ pub fn draw_graph(
                 tmt_cache,
                 use_face_normals,
                 render_mode,
+                ambient_color,
             );
 
             gl::PopMatrix();

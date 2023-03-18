@@ -1,4 +1,4 @@
-use std::f64::consts::PI;
+use std::f32::consts::PI;
 
 use glam::{Quat, Vec3};
 
@@ -11,7 +11,7 @@ pub struct Camera {
 impl Camera {
     pub fn new() -> Self {
         Camera {
-            position: Vec3::new(3337.0, 10.71, 35872.0),
+            position: Vec3::default(),
             pitch: 0.0,
             yaw: 0.0,
         }
@@ -23,7 +23,7 @@ impl Camera {
     }
 
     pub fn translate(&mut self, z_delta: f32, x_delta: f32) {
-        let deg_to_rad = (PI / 180.0) as f32;
+        let deg_to_rad = PI / 180.0;
 
         let quat = Quat::from_rotation_y((self.yaw + 180.0) * deg_to_rad)
             * Quat::from_rotation_x((self.pitch + 180.0) * deg_to_rad);

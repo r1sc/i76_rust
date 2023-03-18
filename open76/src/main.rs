@@ -1,35 +1,28 @@
 mod cache;
+mod caches;
 mod camera;
 mod frustum;
 mod gl;
 mod render_graph;
+mod sky;
 mod smacker_player;
 mod terrain;
-mod texture_loader;
 mod virtual_fs;
 
-use std::{path::Path, time::Instant};
-
-use cache::FileCache;
-use gl::types::GLuint;
-use glam::{Mat4, Vec3, Vec4};
+use glam::{Vec3, Vec4};
 use glfw::{
     ffi::{glfwSetFramebufferSizeCallback, GLFWwindow},
     Action, Context,
 };
+use std::time::Instant;
 
-use lib76::{
-    fileparsers::{
-        self, act::ACT, cbk::CBK, map::Map, msn::MSN, vcf::VCF, vdf::VDF, vqm::VQM, Geo,
-    },
+use lib76::fileparsers::{self, act::ACT, msn::MSN, vcf::VCF, vdf::VDF};
+use lib76::fileparsers::{msn::ODEFObj, ter::TER, vtf::VTF};
+
+use crate::{
+    render_graph::{GeoNode, RenderMode},
+    sky::Sky,
 };
-use lib76::{
-    fileparsers::{msn::ODEFObj, ter::TER, tmt::TMT, vtf::VTF},
-};
-
-use texture_loader::load_gl_texture;
-
-use crate::render_graph::{GeoNode, RenderMode};
 
 fn load_vcf(vcf_filename: &str) -> Result<(VCF, VDF, VTF), std::io::Error> {
     let vcf: fileparsers::vcf::VCF =
@@ -41,79 +34,22 @@ fn load_vcf(vcf_filename: &str) -> Result<(VCF, VDF, VTF), std::io::Error> {
 
     Ok((vcf, vdf, vtf))
 }
-
-fn build_geo_cache<'a>() -> FileCache<'a, Geo> {
-    cache::FileCache::new(|name| {
-        virtual_fs::load::<Geo>(&format!("E:/i76/extracted/{}.geo", name)).ok()
-    })
-}
-
-fn build_cbk_cache<'a>() -> FileCache<'a, CBK> {
-    cache::FileCache::new(|name| {
-        virtual_fs::load::<CBK>(&format!("E:/i76/extracted/{}", name)).ok()
-    })
-}
-
-fn build_texture_cache<'a>(cbk_cache: &'a mut FileCache<CBK>, act: &'a ACT) -> FileCache<'a, GLuint> {
-    cache::FileCache::new(move |name| {
-        let fixed_name = if name.to_ascii_lowercase().ends_with(".map") {
-            &name[0..name.len() - 4]
-        } else {
-            name
-        };
-        let vqm_path = format!("E:/i76/extracted/{}.vqm", fixed_name);
-        let map_path = format!("E:/i76/extracted/{}.map", fixed_name);
-
-        let tex = match (Path::new(&vqm_path).exists(), Path::new(&map_path).exists()) {
-            (true, _) => {
-                let vqm: VQM =
-                    virtual_fs::load(&&vqm_path).expect(&format!("Failed to load {}", vqm_path));
-                let cbk = cbk_cache.get(&vqm.cbk_filename)?;
-                Some(load_gl_texture(
-                    vqm.width,
-                    vqm.height,
-                    &vqm.to_rgba_pixels(cbk, act),
-                ))
-            }
-            (_, true) => {
-                let map: Map =
-                    virtual_fs::load(&&&map_path).expect(&format!("Failed to load {}", map_path));
-                Some(load_gl_texture(
-                    map.width,
-                    map.height,
-                    &map.to_rgba_pixels(act),
-                ))
-            }
-            (false, false) => None,
-        }?;
-
-        Some(tex)
-    })
-}
-
-fn build_tmt_cache<'a>() -> FileCache<'a, TMT> {
-    cache::FileCache::new(|name| {
-        virtual_fs::load::<TMT>(&format!("E:/i76/extracted/{}", name)).ok()
-    })
-}
-
 fn main() -> Result<(), std::io::Error> {
     println!("Initializing");
 
     let mut camera = camera::Camera::new();
 
     println!("Loading data");
-    let msn: MSN = virtual_fs::load("E:/i76/MISSIONS/T01.msn")?;
+    let msn: MSN = virtual_fs::load("E:/i76/MISSIONS/A01.msn")?;
     let act: ACT = virtual_fs::load(&format!("E:/i76/extracted/{}", &msn.wrld.act_filename))?;
     let ter: TER = virtual_fs::load(&format!("E:/i76/MISSIONS/{}", &msn.tdef.zone.ter_filename))?;
 
-    
-    let mut geo_cache = build_geo_cache();
-    let mut cbk_cache = build_cbk_cache();
-    let mut texture_cache = build_texture_cache(&mut cbk_cache, &act);
-    let mut tmt_cache = build_tmt_cache();
+    let mut geo_cache = caches::build_geo_cache();
+    let mut cbk_cache = caches::build_cbk_cache();
+    let mut texture_cache = caches::build_texture_cache(&mut cbk_cache, &act);
+    let mut tmt_cache = caches::build_tmt_cache();
 
-    let objects = msn
+    let objects: Vec<(Vec<GeoNode>, render_graph::RenderMode, &ODEFObj)> = msn
         .odef_objs
         .iter()
         .map(|o| {
@@ -129,7 +65,10 @@ fn main() -> Result<(), std::io::Error> {
             } else {
                 let sdf: fileparsers::SDF =
                     virtual_fs::load(&format!("E:/i76/extracted/{}.sdf", &o.label))?;
-                println!("Building render graph for {} ({})", &sdf.sdfc.name, &o.label);
+                println!(
+                    "Building render graph for {} ({})",
+                    &sdf.sdfc.name, &o.label
+                );
                 let graph = render_graph::from(
                     sdf.sgeo.lod_levels[0].lod_parts.iter().map(|a| &a.geo_part),
                     &mut &mut geo_cache,
@@ -137,13 +76,13 @@ fn main() -> Result<(), std::io::Error> {
                 Ok((graph, RenderMode::SGEO, o))
             }
         })
-        .collect::<Result<Vec<(Vec<GeoNode>, render_graph::RenderMode, &ODEFObj)>, std::io::Error>>(
-        )?;
+        .filter_map(|f: Result<_, std::io::Error>| f.ok())
+        .collect();
 
     camera.position = objects
         .iter()
         .find(|o| o.2.label == "vppirna1")
-        .map(|o| Vec3::new(o.2.position.x, o.2.position.y + 10.0, o.2.position.z))
+        .map(|o| Vec3::new(o.2.position.x, o.2.position.y + 1.0, o.2.position.z))
         .unwrap_or(Vec3::ZERO);
 
     println!("Starting GLFW...");
@@ -160,14 +99,16 @@ fn main() -> Result<(), std::io::Error> {
 
     gl::load_with(|s| window.get_proc_address(s));
 
-    let light_pos = Vec4::new(10.0, 10.0, 0.0, 0.0).to_array().as_ptr();
+    let light_pos = Vec4::new(5.0, 5.0, 5.0, 0.0).to_array().as_ptr();
+    let ambient_color = act.entries[247].to_vec3().extend(1.0).to_array();
+
     unsafe {
         unsafe fn resize(w: i32, h: i32) {
             gl::MatrixMode(gl::PROJECTION);
             gl::LoadIdentity();
 
             let mut matrix = [0.0; 16];
-            frustum::glh_perspectivef2(&mut matrix, 60.0, w as f32 / h as f32, 0.1, 500.0);
+            frustum::glh_perspectivef2(&mut matrix, 60.0, w as f32 / h as f32, 0.1, 1000.0);
             gl::LoadMatrixf(matrix.as_ptr());
             gl::MatrixMode(gl::MODELVIEW);
         }
@@ -194,27 +135,35 @@ fn main() -> Result<(), std::io::Error> {
         gl::Enable(gl::DEPTH_TEST);
         gl::Enable(gl::TEXTURE_2D);
 
-        gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+        let cc = act.entries[239].to_vec3();
+        gl::ClearColor(cc.x, cc.y, cc.z, 1.0);
 
         gl::Enable(gl::LIGHTING);
         gl::Enable(gl::LIGHT0);
-        gl::Lightfv(gl::LIGHT0, gl::DIFFUSE, [1.0, 1.0, 1.0, 1.0].as_ptr());
-        gl::Lightfv(gl::LIGHT0, gl::AMBIENT, [0.5, 0.5, 0.5, 1.0].as_ptr());
+        gl::Lightfv(
+            gl::LIGHT0,
+            gl::DIFFUSE,
+            act.entries[176].to_vec3().extend(1.0).to_array().as_ptr(),
+        );
+        gl::Lightfv(gl::LIGHT0, gl::AMBIENT, ambient_color.as_ptr());
     }
 
     println!("...done");
 
-    let surface_texture = load_texture_with_act(&msn.wrld.surface_texture_filename, &act)?;
-    let sky_texture = load_texture_with_act(&msn.wrld.sky_texture_filename, &act)?;
+    let surface_texture = **texture_cache
+        .get(&msn.wrld.surface_texture_filename)
+        .unwrap();
+    let sky_texture = **texture_cache.get(&msn.wrld.sky_texture_filename).unwrap();
 
     let (mut ox, mut oy) = (0.0, 0.0);
     let mut last_time = Instant::now();
-    let mut sky_drift = 0.0;
+    let mut sky = Sky::new();
+
     while !window.should_close() {
         let now = Instant::now();
         let delta = now.duration_since(last_time);
         last_time = now;
-        let secs = delta.as_secs_f64();
+        let delta = delta.as_secs_f32();
 
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
@@ -223,51 +172,23 @@ fn main() -> Result<(), std::io::Error> {
             gl::Rotatef(camera.pitch, 1.0, 0.0, 0.0);
             gl::Rotatef(camera.yaw, 0.0, 1.0, 0.0);
 
-            gl::Disable(gl::LIGHTING);
-            gl::Disable(gl::DEPTH_TEST);
-            gl::Disable(gl::ALPHA_TEST);
-            gl::Enable(gl::TEXTURE_2D);
+            sky.draw(sky_texture);
 
-            gl::PushMatrix();
-
-            gl::BindTexture(gl::TEXTURE_2D, sky_texture);
-
-            gl::Color4f(1.0, 1.0, 1.0, 1.0);
-            gl::Begin(gl::QUADS);
-            gl::TexCoord2d(sky_drift, 0.0);
-            gl::Vertex3f(-100.0, 1.0, -100.0);
-            gl::TexCoord2d(sky_drift + 100.0, 0.0);
-            gl::Vertex3f(100.0, 1.0, -100.0);
-            gl::TexCoord2d(sky_drift + 100.0, 100.0);
-            gl::Vertex3f(100.0, 1.0, 100.0);
-            gl::TexCoord2d(sky_drift, 100.0);
-            gl::Vertex3f(-100.0, 1.0, 100.0);
-            gl::End();
-
-            gl::PopMatrix();
-
-            gl::Translatef(-camera.position.x, -camera.position.y, camera.position.z);
-
-            gl::Enable(gl::CULL_FACE);
-            gl::Enable(gl::ALPHA_TEST);
-            gl::Enable(gl::LIGHTING);
-            gl::Enable(gl::DEPTH_TEST);
-
+            gl::Translatef(
+                -camera.position.x,
+                -camera.position.y,
+                camera.position.z,
+            );
             gl::Lightfv(gl::LIGHT0, gl::POSITION, light_pos);
 
-            gl::Enable(gl::POLYGON_OFFSET_FILL);
-            gl::PolygonOffset(5.0, 1.0);
-            gl::BindTexture(gl::TEXTURE_2D, surface_texture);
-
             terrain::render_terrain(
+                surface_texture,
                 &msn.tdef.zmap,
                 &ter,
                 camera.position.x,
                 camera.position.z,
                 50,
             );
-
-            gl::Disable(gl::POLYGON_OFFSET_FILL);
 
             for object in &objects {
                 gl::PushMatrix();
@@ -284,6 +205,7 @@ fn main() -> Result<(), std::io::Error> {
                     &mut tmt_cache,
                     false,
                     &object.1,
+                    &ambient_color,
                 );
                 gl::PopMatrix();
             }
@@ -293,10 +215,10 @@ fn main() -> Result<(), std::io::Error> {
 
         glfw.poll_events();
 
-        sky_drift = (sky_drift + 0.1 * secs) % 100.0;
+        sky.tick(delta);
 
-        let mut x_disp: f64 = 0.0;
-        let mut z_disp: f64 = 0.0;
+        let mut x_disp: f32 = 0.0;
+        let mut z_disp: f32 = 0.0;
 
         if window.get_key(glfw::Key::Escape) == Action::Press {
             window.set_should_close(true);
@@ -319,14 +241,14 @@ fn main() -> Result<(), std::io::Error> {
             z_disp *= 10.0;
         }
 
-        camera.translate((z_disp * 10.0 * secs) as f32, (x_disp * 10.0 * secs) as f32);
+        camera.translate(z_disp * 10.0 * delta, x_disp * 10.0 * delta);
 
         let (x, y) = window.get_cursor_pos();
         let (dx, dy) = (ox - x, oy - y);
         ox = x;
         oy = y;
 
-        camera.turn((dx * 2.0) as f32, (dy * 2.0) as f32, secs as f32);
+        camera.turn((dx as f32) * 2.0, (dy as f32) * 2.0, delta);
 
         window.set_title(&format!(
             "{}, {}, {}",
@@ -335,17 +257,4 @@ fn main() -> Result<(), std::io::Error> {
     }
 
     return Ok(());
-}
-
-fn load_texture_with_act(filename: &str, act: &ACT) -> Result<GLuint, std::io::Error> {
-    let surface_texture_rgba: Map = virtual_fs::load(&format!(
-        "E:/i76/extracted/{}",
-        filename
-    ))?;
-    
-    Ok(load_gl_texture(
-        surface_texture_rgba.width,
-        surface_texture_rgba.height,
-        &surface_texture_rgba.to_rgba_pixels(&act)
-    ))
 }

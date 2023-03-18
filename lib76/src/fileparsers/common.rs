@@ -17,6 +17,11 @@ impl Readable for ColorRGB {
         Ok(Self(r, g, b))
     }
 }
+impl ColorRGB {
+    pub fn to_vec3(&self) -> Vec3 {
+        Vec3::new((self.0 as f32) / 255.0, (self.1 as f32) / 255.0, (self.2 as f32) / 255.0)
+    }
+}
 
 #[derive(Clone, Copy)]
 pub struct RotationAxis {

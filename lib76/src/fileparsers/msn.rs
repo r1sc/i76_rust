@@ -243,7 +243,7 @@ impl Readable for RSEG {
                 let right = Vec3::consume(reader)?;
                 Ok((left, right))
             })
-            .collect::<Result<Vec<(Vec3, Vec3)>, std::io::Error>>()?;
+            .collect::<Result<_, std::io::Error>>()?;
         Ok(Self {
             segment_type,
             segment_piece_count,
@@ -271,7 +271,7 @@ impl Readable for ODEFObj {
         let position = Vec3::consume(reader)?;
         let unk = (0..9)
             .map(|_| reader.read_u32())
-            .collect::<Result<Vec<u32>, std::io::Error>>()?;
+            .collect::<Result<_, std::io::Error>>()?;
         let class_id = reader.read_u32()?;
         let flags = reader.read_u16()?;
         let team_id = reader.read_u16()?;
@@ -306,7 +306,7 @@ impl Readable for LDEFObj {
         let num_strings = reader.read_u32()?;
         let string_positions = (0..num_strings)
             .map(|_| Vec3::consume(reader))
-            .collect::<Result<Vec<Vec3>, std::io::Error>>()?;
+            .collect::<Result<_, std::io::Error>>()?;
 
         Ok(Self {
             label,

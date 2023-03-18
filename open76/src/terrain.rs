@@ -1,9 +1,16 @@
 use glam::Vec3;
 use lib76::fileparsers::{msn::ZMAP, ter::TER};
 
-use crate::gl;
+use crate::gl::{self, types::GLuint};
 
-pub fn render_terrain(zmap: &ZMAP, ter: &TER, camera_x: f32, camera_z: f32, cells_wide: u32) {
+pub fn render_terrain(
+    surface_texture: GLuint,
+    zmap: &ZMAP,
+    ter: &TER,
+    camera_x: f32,
+    camera_z: f32,
+    cells_wide: u32,
+) {
     let camera_cell_x = (camera_x as u32) / 5;
     let camera_cell_z = (camera_z as u32) / 5;
 
@@ -39,8 +46,21 @@ pub fn render_terrain(zmap: &ZMAP, ter: &TER, camera_x: f32, camera_z: f32, cell
         }
     };
 
-    let cells_wide_i = cells_wide as i32;
+    unsafe {
+        gl::Enable(gl::CULL_FACE);
+        gl::Enable(gl::ALPHA_TEST);
+        gl::Enable(gl::LIGHTING);
+        gl::Enable(gl::DEPTH_TEST);
 
+        gl::Enable(gl::POLYGON_OFFSET_FILL);
+        gl::PolygonOffset(5.0, 1.0);
+        gl::BindTexture(gl::TEXTURE_2D, surface_texture);
+
+        let white: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+        gl::Materialfv(gl::FRONT_AND_BACK, gl::DIFFUSE, white.as_ptr());
+    }
+
+    let cells_wide_i = cells_wide as i32;
     for z in -cells_wide_i..cells_wide_i {
         unsafe {
             gl::Begin(gl::TRIANGLE_STRIP);
@@ -66,11 +86,11 @@ pub fn render_terrain(zmap: &ZMAP, ter: &TER, camera_x: f32, camera_z: f32, cell
             let n = v1v2.cross(v1v3).normalize();
 
             unsafe {
-                gl::TexCoord2f(world_x / 5.0, world_z2 / 5.0);
+                gl::TexCoord2f(world_x, world_z2);
                 gl::Normal3f(n.x, n.y, n.z);
                 gl::Vertex3f(world_x, p2, -world_z2);
 
-                gl::TexCoord2f(world_x / 5.0, world_z1 / 5.0);
+                gl::TexCoord2f(world_x, world_z1);
                 gl::Normal3f(n.x, n.y, n.z);
                 gl::Vertex3f(world_x, p1, -world_z1);
             }
@@ -78,5 +98,9 @@ pub fn render_terrain(zmap: &ZMAP, ter: &TER, camera_x: f32, camera_z: f32, cell
         unsafe {
             gl::End();
         }
+    }
+
+    unsafe {
+        gl::Disable(gl::POLYGON_OFFSET_FILL);
     }
 }

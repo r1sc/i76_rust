@@ -22,10 +22,10 @@ impl Readable for Geo {
         let _unk = reader.read_u32()?;
         let vertices = (0..vertex_count)
             .map(|_| Vec3::consume(reader))
-            .collect::<Result<Vec<Vec3>, std::io::Error>>()?;
+            .collect::<Result<_, std::io::Error>>()?;
         let normals = (0..vertex_count)
             .map(|_| Vec3::consume(reader))
-            .collect::<Result<Vec<Vec3>, std::io::Error>>()?;
+            .collect::<Result<_, std::io::Error>>()?;
         let faces = (0..face_count)
             .map(|_| GeoFace::consume(reader))
             .collect::<Result<Vec<GeoFace>, std::io::Error>>()?;
@@ -66,7 +66,7 @@ impl Readable for GeoFace {
         reader.read_u32()?;
         let vertex_refs = (0..num_vertices_in_face)
             .map(|_| GeoVertexRef::consume(reader))
-            .collect::<Result<Vec<GeoVertexRef>, std::io::Error>>()?;
+            .collect::<Result<_, std::io::Error>>()?;
 
         Ok(Self {
             index,

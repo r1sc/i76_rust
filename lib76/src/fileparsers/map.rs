@@ -1,4 +1,7 @@
-use super::{act::ACT, binary_reader::{BinaryReader, Readable}, common::ColorRGB};
+use super::{
+    act::ACT,
+    binary_reader::{BinaryReader, Readable},
+};
 
 pub struct Map {
     pub width: u32,
@@ -24,20 +27,8 @@ impl Map {
         self.clut_refs
             .iter()
             .map(|clut_ref| {
-                // match act {
-                //     Some(a) => {
-                        let rgb = act.entries[*clut_ref as usize];
-                        (255 << 24) | ((rgb.0 as u32) << 16) | ((rgb.1 as u32) << 8) | (rgb.2 as u32)
-                    // },
-                    // None => {
-                    //     if clut_ref == &0xffu8 {
-                    //         0
-                    //     } else {
-                    //         let rgb = lut[*clut_ref as usize];
-                    //         (255 << 24) | rgb
-                    //     }
-                    // }
-                // }
+                let rgb = act.entries[*clut_ref as usize];
+                (255 << 24) | ((rgb.0 as u32) << 16) | ((rgb.1 as u32) << 8) | (rgb.2 as u32)
             })
             .collect()
     }

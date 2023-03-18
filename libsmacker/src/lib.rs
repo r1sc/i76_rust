@@ -207,7 +207,7 @@ impl Smk {
 
     pub fn enable(&self, mask: EnableMask) {
         unsafe {
-            ffi::smk_enable_all(self.ctx, mask.bits);
+            ffi::smk_enable_all(self.ctx, mask.bits());
         }
     }
 }

@@ -2,16 +2,16 @@
 name = "open76"
 version = "0.1.0"
 authors = ["r1sc <sandberg.erik@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 byteorder = "1.4.3"
-rodio = "0.14.0"
+rodio = "0.17"
 lib76 = { path = "../lib76" }
 libsmacker = { path = "../libsmacker" }
-glam = "0.16.0"
+glam = "0.23"
 
 [dependencies.glfw]
 git = "https://github.com/bjz/glfw-rs.git"
