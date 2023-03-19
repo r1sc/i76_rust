@@ -7,6 +7,7 @@ license = "LGPL-2.1"
 keywords = ["gamedev", "video", "smk", "smacker", "bink"]
 description = "sys-crate for libsmacker. Provides an unsafe wrapper around libsmacker."
 readme = "README.md"
+documentation = "https://docs.rs/libsmacker-sys"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
