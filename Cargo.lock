@@ -408,7 +408,7 @@ dependencies = [
 
 [[package]]
 name = "libsmacker"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bitflags 2.0.2",
  "enum_primitive",
@@ -417,7 +417,7 @@ dependencies = [
 
 [[package]]
 name = "libsmacker-sys"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cc",
  "libc",

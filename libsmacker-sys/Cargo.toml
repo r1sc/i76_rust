@@ -1,6 +1,6 @@
 [package]
 name = "libsmacker-sys"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["r1sc"]
 edition = "2021"
 license = "LGPL-2.1"
