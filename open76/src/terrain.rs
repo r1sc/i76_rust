@@ -47,60 +47,70 @@ pub fn render_terrain(
     };
 
     unsafe {
-        gl::Enable(gl::CULL_FACE);
-        gl::Enable(gl::ALPHA_TEST);
-        gl::Enable(gl::LIGHTING);
+        gl::Disable(gl::ALPHA_TEST);
+        gl::Disable(gl::LIGHTING);
         gl::Enable(gl::DEPTH_TEST);
 
-        gl::Enable(gl::POLYGON_OFFSET_FILL);
-        gl::PolygonOffset(5.0, 1.0);
+        // gl::Enable(gl::POLYGON_OFFSET_FILL);
+        // gl::PolygonOffset(5.0, 1.0);
         gl::BindTexture(gl::TEXTURE_2D, surface_texture);
 
         let white: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
-        gl::Materialfv(gl::FRONT_AND_BACK, gl::DIFFUSE, white.as_ptr());
+        gl::Materialfv(gl::FRONT, gl::DIFFUSE, white.as_ptr());
     }
 
-    let cells_wide_i = cells_wide as i32;
-    for z in -cells_wide_i..cells_wide_i {
-        unsafe {
-            gl::Begin(gl::TRIANGLE_STRIP);
-        }
-        for x in -cells_wide_i..cells_wide_i {
-            let p1 = get_height_at_relative_cell(x, z);
+    // let cells_wide_i = cells_wide as i32;
+    // for z in -cells_wide_i..=cells_wide_i {
+    //     unsafe {
+    //         // gl::Begin(gl::TRIANGLE_STRIP);
+    //     }
+    //     // for x in -cells_wide_i..=cells_wide_i {
+    //     //     let p1 = get_height_at_relative_cell(x, z);
 
-            let world_x = (((camera_cell_x as i32) + x) * 5) as f32;
-            let world_z1 = (((camera_cell_z as i32) + z) * 5) as f32;
+    //     //     let world_x = (((camera_cell_x as i32) + x) * 5) as f32;
+    //     //     let world_z1 = (((camera_cell_z as i32) + z) * 5) as f32;
 
-            let p2 = get_height_at_relative_cell(x, z + 1);
+    //     //     let p2 = get_height_at_relative_cell(x, z + 1);
 
-            let world_z2 = (((camera_cell_z as i32) + z + 1) * 5) as f32;
+    //     //     let world_z2 = (((camera_cell_z as i32) + z + 1) * 5) as f32;
 
-            let p3 = get_height_at_relative_cell(x + 1, z);
+    //     //     let p3 = get_height_at_relative_cell(x + 1, z);
 
-            let v1 = Vec3::new(x as f32, p1, z as f32);
-            let v2 = Vec3::new(x as f32, p2, (z + 5) as f32);
-            let v3 = Vec3::new((x + 5) as f32, p3, z as f32);
+    //     //     let v1 = Vec3::new(x as f32, p1, z as f32);
+    //     //     let v2 = Vec3::new(x as f32, p2, (z + 5) as f32);
+    //     //     let v3 = Vec3::new((x + 5) as f32, p3, z as f32);
 
-            let v1v2 = v2 - v1;
-            let v1v3 = v3 - v1;
-            let n = v1v2.cross(v1v3).normalize();
+    //     //     let v1v2 = v2 - v1;
+    //     //     let v1v3 = v3 - v1;
+    //     //     let n = v1v2.cross(v1v3).normalize();
 
-            unsafe {
-                gl::TexCoord2f(world_x, world_z2);
-                gl::Normal3f(n.x, n.y, n.z);
-                gl::Vertex3f(world_x, p2, -world_z2);
+    //     //     unsafe {
+    //     //         gl::TexCoord2f(world_x, world_z2);
+    //     //         gl::Normal3f(n.x, n.y, n.z);
+    //     //         gl::Vertex3f(world_x, p2, -world_z2);
 
-                gl::TexCoord2f(world_x, world_z1);
-                gl::Normal3f(n.x, n.y, n.z);
-                gl::Vertex3f(world_x, p1, -world_z1);
-            }
-        }
-        unsafe {
-            gl::End();
-        }
+    //     //         gl::TexCoord2f(world_x, world_z1);
+    //     //         gl::Normal3f(n.x, n.y, n.z);
+    //     //         gl::Vertex3f(world_x, p1, -world_z1);
+    //     //     }
+    //     // }
+    // }
+
+    unsafe {
+        gl::Begin(gl::QUADS);
+        gl::Normal3f(0.0, 1.0, 0.0);
+        gl::Vertex3f(0.0, 0.0, 0.0);
+        gl::Vertex3f(640.0, 0.0,  0.0);
+        gl::Vertex3f(640.0, 0.0, 640.0);
+        gl::Vertex3f(0.0, 0.0, 640.0);
+        gl::End();
     }
 
     unsafe {
-        gl::Disable(gl::POLYGON_OFFSET_FILL);
+        // gl::Disable(gl::POLYGON_OFFSET_FILL);
+
+        gl::Enable(gl::CULL_FACE);
+        gl::Enable(gl::ALPHA_TEST);
+        gl::Enable(gl::LIGHTING);
     }
 }

@@ -32,11 +32,10 @@ impl Readable for RotationAxis {
         let right = Vec3::consume(reader)?;
         let up = Vec3::consume(reader)?;
         let forward = Vec3::consume(reader)?;
-        let negate_z = Vec3::new(1.0, 1.0, -1.0);
         let matrix = Mat4::from_cols(
-            (right * negate_z).extend(0.0),
-            (up * negate_z).extend(0.0),
-            (forward * negate_z).extend(0.0),
+            (right).extend(0.0),
+            (up).extend(0.0),
+            (forward).extend(0.0),
             Vec4::new(0.0, 0.0, 0.0, 1.0),
         );
         Ok(Self { matrix })

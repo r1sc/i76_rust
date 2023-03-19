@@ -8,8 +8,9 @@ mod sky;
 mod smacker_player;
 mod terrain;
 mod virtual_fs;
+mod ivec;
 
-use glam::{Vec3, Vec4};
+use glam::{Vec3, Vec4, vec3};
 use glfw::{
     ffi::{glfwSetFramebufferSizeCallback, GLFWwindow},
     Action, Context,
@@ -35,8 +36,6 @@ fn load_vcf(vcf_filename: &str) -> Result<(VCF, VDF, VTF), std::io::Error> {
     Ok((vcf, vdf, vtf))
 }
 fn main() -> Result<(), std::io::Error> {
-    println!("Initializing");
-
     let mut camera = camera::Camera::new();
 
     println!("Loading data");
@@ -49,7 +48,7 @@ fn main() -> Result<(), std::io::Error> {
     let mut texture_cache = caches::build_texture_cache(&mut cbk_cache, &act);
     let mut tmt_cache = caches::build_tmt_cache();
 
-    let objects: Vec<(Vec<GeoNode>, render_graph::RenderMode, &ODEFObj)> = msn
+    let objects: Vec<_> = msn
         .odef_objs
         .iter()
         .map(|o| {
@@ -82,7 +81,7 @@ fn main() -> Result<(), std::io::Error> {
     camera.position = objects
         .iter()
         .find(|o| o.2.label == "vppirna1")
-        .map(|o| Vec3::new(o.2.position.x, o.2.position.y + 1.0, o.2.position.z))
+        .map(|o| o.2.position + Vec3::Y * 2.0)
         .unwrap_or(Vec3::ZERO);
 
     println!("Starting GLFW...");
@@ -127,7 +126,7 @@ fn main() -> Result<(), std::io::Error> {
 
         gl::Enable(gl::CULL_FACE);
         gl::CullFace(gl::BACK);
-        gl::FrontFace(gl::CCW);
+        gl::FrontFace(gl::CW);
 
         gl::Enable(gl::ALPHA_TEST);
         gl::AlphaFunc(gl::GEQUAL, 1.0);
@@ -169,16 +168,10 @@ fn main() -> Result<(), std::io::Error> {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
             gl::LoadIdentity();
-            gl::Rotatef(camera.pitch, 1.0, 0.0, 0.0);
-            gl::Rotatef(camera.yaw, 0.0, 1.0, 0.0);
 
             sky.draw(sky_texture);
 
-            gl::Translatef(
-                -camera.position.x,
-                -camera.position.y,
-                camera.position.z,
-            );
+            gl::LoadMatrixf(&camera.get_view().to_cols_array() as *const _);
             gl::Lightfv(gl::LIGHT0, gl::POSITION, light_pos);
 
             terrain::render_terrain(
@@ -195,7 +188,7 @@ fn main() -> Result<(), std::io::Error> {
                 gl::Translatef(
                     object.2.position.x,
                     object.2.position.y,
-                    -object.2.position.z,
+                    object.2.position.z,
                 );
                 gl::MultMatrixf(object.2.rotation.matrix.to_cols_array().as_ptr());
 
@@ -241,7 +234,7 @@ fn main() -> Result<(), std::io::Error> {
             z_disp *= 10.0;
         }
 
-        camera.translate(z_disp * 10.0 * delta, x_disp * 10.0 * delta);
+        camera.translate(x_disp * 10.0 * delta, z_disp * 10.0 * delta);
 
         let (x, y) = window.get_cursor_pos();
         let (dx, dy) = (ox - x, oy - y);

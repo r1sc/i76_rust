@@ -11,7 +11,7 @@ pub struct MSN {
     pub rsegs: Vec<RSEG>,
     pub odef_objs: Vec<ODEFObj>,
     pub ldef_objs: Vec<LDEFObj>,
-    pub tdef: TDEF
+    pub tdef: TDEF,
 }
 
 impl Readable for MSN {
@@ -86,7 +86,7 @@ impl Readable for MSN {
                             }
                         }
                     }
-                },
+                }
                 "TDEF" => tdef = Some(TDEF::consume(reader)?),
                 _ => {
                     reader.seek((tag.size - 8) as i64)?;
@@ -100,7 +100,7 @@ impl Readable for MSN {
             rsegs,
             odef_objs,
             ldef_objs,
-            tdef: tdef.expect("Expected TDEF")
+            tdef: tdef.expect("Expected TDEF"),
         })
     }
 }
@@ -268,7 +268,12 @@ impl Readable for ODEFObj {
     {
         let label = reader.read_fixed(8)?;
         let rotation = RotationAxis::consume(reader)?;
-        let position = Vec3::consume(reader)?;
+        let mut position = Vec3::consume(reader)?;
+
+        // Localify this position to the terrain slice it's located in
+        position.x %= 640.0;
+        position.z %= 640.0;
+
         let unk = (0..9)
             .map(|_| reader.read_u32())
             .collect::<Result<_, std::io::Error>>()?;
@@ -341,7 +346,7 @@ impl Readable for ZMAP {
         Self: Sized,
     {
         let num_active_zones = reader.read_u8()?;
-        let zone_references =reader.bytes((80 * 80) as usize)?;
+        let zone_references = reader.bytes((80 * 80) as usize)?;
         Ok(Self {
             num_active_zones,
             zone_references,

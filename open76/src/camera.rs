@@ -1,12 +1,14 @@
 use std::f32::consts::PI;
 
-use glam::{Quat, Vec3};
+use glam::{Mat4, Quat, Vec3, vec3};
 
 pub struct Camera {
     pub position: Vec3,
     pub pitch: f32,
     pub yaw: f32,
 }
+
+const DEG_TO_RAD: f32 = PI / 180.0;
 
 impl Camera {
     pub fn new() -> Self {
@@ -17,21 +19,26 @@ impl Camera {
         }
     }
 
-    pub fn turn(&mut self, x_delta: f32, y_delta: f32, secs: f32) {
-        self.pitch -= y_delta * secs;
-        self.yaw -= x_delta * secs;
+    pub fn get_view(&self) -> Mat4 {
+        let yaw_quat = Quat::from_axis_angle(Vec3::Y, self.yaw * DEG_TO_RAD);
+        let pitch_quat = Quat::from_axis_angle(Vec3::X, self.pitch * DEG_TO_RAD);
+        let rotation = pitch_quat * yaw_quat;
+        Mat4::from_quat(rotation) * Mat4::from_translation(-self.position)
     }
 
-    pub fn translate(&mut self, z_delta: f32, x_delta: f32) {
-        let deg_to_rad = PI / 180.0;
+    pub fn turn(&mut self, x_delta: f32, y_delta: f32, secs: f32) {
+        self.yaw -= x_delta * secs;
+        self.pitch -= y_delta * secs;
+    }
 
-        let quat = Quat::from_rotation_y((self.yaw + 180.0) * deg_to_rad)
-            * Quat::from_rotation_x((self.pitch + 180.0) * deg_to_rad);
+    pub fn translate(&mut self, x_delta: f32, z_delta: f32) {
+        let yaw_quat = Quat::from_axis_angle(Vec3::Y, self.yaw * DEG_TO_RAD);
+        let pitch_quat = Quat::from_axis_angle(Vec3::X, self.pitch * DEG_TO_RAD);
+        let rotation = (pitch_quat * yaw_quat).inverse();
+        
+        let forward = rotation * Vec3::NEG_Z;
+        let side = rotation * Vec3::X;
 
-        let disp = (quat * -Vec3::Z * z_delta) + (quat * Vec3::X * x_delta);
-
-        self.position.x -= disp.x;
-        self.position.z -= disp.z;
-        self.position.y += disp.y;
+        self.position += forward * z_delta + side * x_delta;
     }
 }

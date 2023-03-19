@@ -19,9 +19,9 @@ impl Readable for TER {
             .map(|_| {
                 (0..block_size)
                     .map(|_| reader.read_u16())
-                    .collect::<Result<Vec<u16>, std::io::Error>>()
+                    .collect::<Result<_, std::io::Error>>()
             })
-            .collect::<Result<Vec<Vec<u16>>, std::io::Error>>()?;
+            .collect::<Result<_, std::io::Error>>()?;
 
         Ok(Self { entries })
     }
