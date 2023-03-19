@@ -26,7 +26,7 @@ impl Readable for SDF {
                     schks.push(schk);
                 }
                 _ => {
-                    reader.seek((tag.size - 8) as i64)?;
+                    reader.seek(tag.size as i64)?;
                 }
             }
         }

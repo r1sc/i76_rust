@@ -22,7 +22,7 @@ impl Readable for VDF {
                 "VLOC" => vlocs.push(VLOC::consume(reader)?),
                 "VGEO" => vgeo = Some(VGEO::consume(reader)?),
                 _ => {
-                    reader.seek((tag.size - 8) as i64)?;
+                    reader.seek(tag.size as i64)?;
                 }
             }
         }

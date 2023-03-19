@@ -9,10 +9,9 @@ edition = "2021"
 [dependencies]
 byteorder = "1.4.3"
 rodio = "0.17"
+glfw = "0.51.0"
 lib76 = { path = "../lib76" }
 libsmacker = { path = "../libsmacker" }
 glam = "0.23"
+glow = "0.12.1"
 
-[dependencies.glfw]
-git = "https://github.com/bjz/glfw-rs.git"
-default-features = false

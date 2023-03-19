@@ -1,3 +1,4 @@
-Rust bindings for libsmacker (http://libsmacker.sourceforge.net/)
+Unofficial Rust bindings for libsmacker (http://libsmacker.sourceforge.net/)
 
-License: LGPL v2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html)
+Ships libsmacker source code which is licensed under LGPL v2.1.
+See https://libsmacker.sourceforge.net/ for more information.

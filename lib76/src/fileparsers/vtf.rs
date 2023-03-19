@@ -14,7 +14,7 @@ impl Readable for VTF {
             match &tag.name[..] {
                 "VTFC" => vtfc = Some(VTFC::consume(reader)?),
                 _ => {
-                    reader.seek((tag.size - 8) as i64)?;
+                    reader.seek(tag.size as i64)?;
                 }
             }
         }

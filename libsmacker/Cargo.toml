@@ -1,8 +1,12 @@
 [package]
 name = "libsmacker"
 version = "0.1.0"
-authors = ["Erik Sandberg <sandberg.erik@gmail.com>"]
+authors = ["r1sc"]
 edition = "2021"
+license = "LGPL-2.1"
+keywords = ["gamedev", "video", "smk", "smacker", "bink"]
+description = "Higher-level bindings for libsmacker"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

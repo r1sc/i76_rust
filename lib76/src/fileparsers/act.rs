@@ -8,9 +8,9 @@ impl Readable for ACT {
     where
         Self: Sized,
     {
-        let entries = (0..256)
+        let entries: Vec<_> = (0..256)
             .map(|_| ColorRGB::consume(reader))
-            .collect::<Result<Vec<ColorRGB>, std::io::Error>>()?;
+            .collect::<Result<_, std::io::Error>>()?;
         Ok(Self { entries })
     }
 }

@@ -34,7 +34,7 @@ impl Readable for MSN {
                                 break;
                             }
                             _ => {
-                                reader.seek((tag.size - 8) as i64)?;
+                                reader.seek(tag.size as i64)?;
                             }
                         }
                     }
@@ -50,7 +50,7 @@ impl Readable for MSN {
                                 break;
                             }
                             _ => {
-                                reader.seek((tag.size - 8) as i64)?;
+                                reader.seek(tag.size as i64)?;
                             }
                         }
                     }
@@ -66,7 +66,7 @@ impl Readable for MSN {
                                 break;
                             }
                             _ => {
-                                reader.seek((tag.size - 8) as i64)?;
+                                reader.seek(tag.size as i64)?;
                             }
                         }
                     }
@@ -82,14 +82,14 @@ impl Readable for MSN {
                                 break;
                             }
                             _ => {
-                                reader.seek((tag.size - 8) as i64)?;
+                                reader.seek(tag.size as i64)?;
                             }
                         }
                     }
                 }
                 "TDEF" => tdef = Some(TDEF::consume(reader)?),
                 _ => {
-                    reader.seek((tag.size - 8) as i64)?;
+                    reader.seek(tag.size as i64)?;
                 }
             }
         }
@@ -392,7 +392,7 @@ impl Readable for TDEF {
                     break;
                 }
                 _ => {
-                    reader.seek((tag.size - 8) as i64)?;
+                    reader.seek(tag.size as i64)?;
                 }
             }
         }

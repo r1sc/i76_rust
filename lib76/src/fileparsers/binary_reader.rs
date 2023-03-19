@@ -1,11 +1,15 @@
-use std::{fs::File, io::{BufReader, Read, Seek, SeekFrom}};
+use std::{
+    fs::File,
+    io::{BufReader, Read, Seek, SeekFrom},
+};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
 use super::common::BWD2Tag;
 
 pub trait Readable {
-    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> where
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
+    where
         Self: Sized;
 }
 
@@ -39,16 +43,16 @@ impl BinaryReader {
     }
 
     pub fn read_fixed(&mut self, count: usize) -> Result<String, std::io::Error> {
-        let mut buffer = vec![0; count];
-        self.reader.read_exact(&mut buffer)?;
+        let mut buffer = self.bytes(count)?;
 
-        buffer = buffer.iter_mut().map(|c| *c & 0x7F ).collect();
+        buffer = buffer.iter_mut().map(|c| *c & 0x7F).collect();
 
         let index = buffer.iter().position(|c| *c == 0).unwrap_or(count);
 
         let s = std::str::from_utf8(&buffer[0..index])
             .expect("Failed to read bytes to string! Not valid utf-8")
-            .to_owned();
+            .to_string();
+
         Ok(s)
     }
 
@@ -85,27 +89,13 @@ impl BinaryReader {
         Ok(result)
     }
 
-    // pub fn until_eof<T, F>(&mut self, mut callback: F) -> Result<Vec<T>, std::io::Error> where F : FnMut(&mut Self) -> Result<T, std::io::Error> {
-    //     let pos = self.reader.stream_position()?;
-    //     let end = self.reader.seek(SeekFrom::End(0))?;
-    //     self.reader.seek(SeekFrom::Start(pos))?;
-
-    //     let mut result: Vec<T> = Vec::new();
-    //     while self.reader.stream_position()? < end {
-    //         let t = callback(self)?;
-    //         result.push(t);
-    //     }
-
-    //     Ok(result)
-    // }
-
     pub fn bwd2_tag(&mut self) -> Result<BWD2Tag, std::io::Error> {
         let name = self.read_fixed(4)?;
-        let size = self.read_u32()?;
+        let size = self.read_u32()? -8;
         Ok(BWD2Tag { name, size })
     }
 
-    pub fn seek(&mut self, offset: i64) -> Result<u64, std::io::Error> {        
+    pub fn seek(&mut self, offset: i64) -> Result<u64, std::io::Error> {
         self.reader.seek(SeekFrom::Current(offset))
     }
 }
