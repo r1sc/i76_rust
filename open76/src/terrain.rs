@@ -1,4 +1,4 @@
-use glam::Vec3;
+use glam::{vec3, Vec3};
 use lib76::fileparsers::{msn::ZMAP, ter::TER};
 
 use crate::gl::{self, types::GLuint};
@@ -8,11 +8,12 @@ pub fn render_terrain(
     zmap: &ZMAP,
     ter: &TER,
     camera_x: f32,
+    camera_y: f32,
     camera_z: f32,
     cells_wide: u32,
 ) {
-    let camera_cell_x = (camera_x as u32) / 5;
-    let camera_cell_z = (camera_z as u32) / 5;
+    let camera_cell_x = (camera_x as i32) / 5;
+    let camera_cell_z = (camera_z as i32) / 5;
 
     let get_height_at_relative_cell = move |x: i32, z: i32| {
         let absolute_x = (camera_cell_x as i32) + x;
@@ -47,70 +48,64 @@ pub fn render_terrain(
     };
 
     unsafe {
-        gl::Disable(gl::ALPHA_TEST);
-        gl::Disable(gl::LIGHTING);
-        gl::Enable(gl::DEPTH_TEST);
-
-        // gl::Enable(gl::POLYGON_OFFSET_FILL);
-        // gl::PolygonOffset(5.0, 1.0);
-        gl::BindTexture(gl::TEXTURE_2D, surface_texture);
-
-        let white: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
-        gl::Materialfv(gl::FRONT, gl::DIFFUSE, white.as_ptr());
-    }
-
-    // let cells_wide_i = cells_wide as i32;
-    // for z in -cells_wide_i..=cells_wide_i {
-    //     unsafe {
-    //         // gl::Begin(gl::TRIANGLE_STRIP);
-    //     }
-    //     // for x in -cells_wide_i..=cells_wide_i {
-    //     //     let p1 = get_height_at_relative_cell(x, z);
-
-    //     //     let world_x = (((camera_cell_x as i32) + x) * 5) as f32;
-    //     //     let world_z1 = (((camera_cell_z as i32) + z) * 5) as f32;
-
-    //     //     let p2 = get_height_at_relative_cell(x, z + 1);
-
-    //     //     let world_z2 = (((camera_cell_z as i32) + z + 1) * 5) as f32;
-
-    //     //     let p3 = get_height_at_relative_cell(x + 1, z);
-
-    //     //     let v1 = Vec3::new(x as f32, p1, z as f32);
-    //     //     let v2 = Vec3::new(x as f32, p2, (z + 5) as f32);
-    //     //     let v3 = Vec3::new((x + 5) as f32, p3, z as f32);
-
-    //     //     let v1v2 = v2 - v1;
-    //     //     let v1v3 = v3 - v1;
-    //     //     let n = v1v2.cross(v1v3).normalize();
-
-    //     //     unsafe {
-    //     //         gl::TexCoord2f(world_x, world_z2);
-    //     //         gl::Normal3f(n.x, n.y, n.z);
-    //     //         gl::Vertex3f(world_x, p2, -world_z2);
-
-    //     //         gl::TexCoord2f(world_x, world_z1);
-    //     //         gl::Normal3f(n.x, n.y, n.z);
-    //     //         gl::Vertex3f(world_x, p1, -world_z1);
-    //     //     }
-    //     // }
-    // }
-
-    unsafe {
-        gl::Begin(gl::QUADS);
-        gl::Normal3f(0.0, 1.0, 0.0);
-        gl::Vertex3f(0.0, 0.0, 0.0);
-        gl::Vertex3f(640.0, 0.0,  0.0);
-        gl::Vertex3f(640.0, 0.0, 640.0);
-        gl::Vertex3f(0.0, 0.0, 640.0);
-        gl::End();
-    }
-
-    unsafe {
-        // gl::Disable(gl::POLYGON_OFFSET_FILL);
-
         gl::Enable(gl::CULL_FACE);
         gl::Enable(gl::ALPHA_TEST);
         gl::Enable(gl::LIGHTING);
+        gl::Enable(gl::DEPTH_TEST);
+
+        //gl::Enable(gl::POLYGON_OFFSET_FILL);
+        //gl::PolygonOffset(5.0, 1.0);
+        gl::BindTexture(gl::TEXTURE_2D, surface_texture);
+
+        let white: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+        gl::Materialfv(gl::FRONT_AND_BACK, gl::DIFFUSE, white.as_ptr());
+
+        gl::PushMatrix();
+        gl::Translatef(-camera_x, -camera_y, -camera_z);
+    }
+
+    let cells_wide_i = cells_wide as i32;
+    for z in -cells_wide_i..cells_wide_i {
+        unsafe {
+            gl::Begin(gl::TRIANGLE_STRIP);
+        }
+        for x in -cells_wide_i..cells_wide_i {
+            let p1 = get_height_at_relative_cell(x, z);
+
+            let world_x = ((camera_cell_x + x) * 5) as f32;
+            let world_z1 = ((camera_cell_z + z) * 5) as f32;
+
+            let p2 = get_height_at_relative_cell(x, z + 1);
+
+            let world_z2 = (((camera_cell_z as i32) + z + 1) * 5) as f32;
+
+            let p3 = get_height_at_relative_cell(x + 1, z);
+
+            let v1 = vec3(x as f32, p1, z as f32);
+            let v2 = vec3(x as f32, p2, (z + 5) as f32);
+            let v3 = vec3((x + 5) as f32, p3, z as f32);
+
+            let v1v2 = v2 - v1;
+            let v1v3 = v3 - v1;
+            let n = v1v2.cross(v1v3).normalize();
+
+            unsafe {
+                gl::TexCoord2f(world_x / 128.0, world_z2 / 128.0);
+                gl::Normal3f(n.x, n.y, n.z);
+                gl::Vertex3f(world_x, p2, world_z2);
+
+                gl::TexCoord2f(world_x/ 128.0, world_z1/ 128.0);
+                gl::Normal3f(n.x, n.y, n.z);
+                gl::Vertex3f(world_x, p1, world_z1);
+            }
+        }
+        unsafe {
+            gl::End();
+        }
+    }
+
+    unsafe {
+        gl::PopMatrix();
+        //gl::Disable(gl::POLYGON_OFFSET_FILL);
     }
 }

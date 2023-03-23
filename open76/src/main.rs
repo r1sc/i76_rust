@@ -1,16 +1,15 @@
 mod cache;
 mod caches;
 mod camera;
-mod frustum;
 mod gl;
 mod render_graph;
 mod sky;
-mod smacker_player;
+//mod smacker_player;
 mod terrain;
 mod virtual_fs;
 mod ivec;
 
-use glam::{Vec3, Vec4, vec3};
+use glam::{Vec3, Vec4};
 use glfw::{
     ffi::{glfwSetFramebufferSizeCallback, GLFWwindow},
     Action, Context,
@@ -18,10 +17,10 @@ use glfw::{
 use std::time::Instant;
 
 use lib76::fileparsers::{self, act::ACT, msn::MSN, vcf::VCF, vdf::VDF};
-use lib76::fileparsers::{msn::ODEFObj, ter::TER, vtf::VTF};
+use lib76::fileparsers::{ter::TER, vtf::VTF};
 
 use crate::{
-    render_graph::{GeoNode, RenderMode},
+    render_graph::RenderMode,
     sky::Sky,
 };
 
@@ -104,11 +103,9 @@ fn main() -> Result<(), std::io::Error> {
     unsafe {
         unsafe fn resize(w: i32, h: i32) {
             gl::MatrixMode(gl::PROJECTION);
-            gl::LoadIdentity();
+            let perspective = glam::Mat4::perspective_lh(60.0f32.to_radians(), w as f32 / h as f32, 0.1, 1000.0);
+            gl::LoadMatrixf(&perspective.to_cols_array() as *const _);
 
-            let mut matrix = [0.0; 16];
-            frustum::glh_perspectivef2(&mut matrix, 60.0, w as f32 / h as f32, 0.1, 1000.0);
-            gl::LoadMatrixf(matrix.as_ptr());
             gl::MatrixMode(gl::MODELVIEW);
         }
 
@@ -125,8 +122,7 @@ fn main() -> Result<(), std::io::Error> {
         glfwSetFramebufferSizeCallback(window.window_ptr(), Some(resize_callback));
 
         gl::Enable(gl::CULL_FACE);
-        gl::CullFace(gl::BACK);
-        gl::FrontFace(gl::CW);
+        gl::FrontFace(gl::CCW);
 
         gl::Enable(gl::ALPHA_TEST);
         gl::AlphaFunc(gl::GEQUAL, 1.0);
@@ -179,6 +175,7 @@ fn main() -> Result<(), std::io::Error> {
                 &msn.tdef.zmap,
                 &ter,
                 camera.position.x,
+				camera.position.y,
                 camera.position.z,
                 50,
             );
@@ -186,9 +183,9 @@ fn main() -> Result<(), std::io::Error> {
             for object in &objects {
                 gl::PushMatrix();
                 gl::Translatef(
-                    object.2.position.x,
-                    object.2.position.y,
-                    object.2.position.z,
+                    object.2.position.x - camera.position.x,
+                    object.2.position.y - camera.position.y,
+                    object.2.position.z - camera.position.z,
                 );
                 gl::MultMatrixf(object.2.rotation.matrix.to_cols_array().as_ptr());
 

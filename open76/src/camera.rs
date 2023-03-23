@@ -23,12 +23,12 @@ impl Camera {
         let yaw_quat = Quat::from_axis_angle(Vec3::Y, self.yaw * DEG_TO_RAD);
         let pitch_quat = Quat::from_axis_angle(Vec3::X, self.pitch * DEG_TO_RAD);
         let rotation = pitch_quat * yaw_quat;
-        Mat4::from_quat(rotation) * Mat4::from_translation(-self.position)
+        Mat4::from_quat(rotation)
     }
 
     pub fn turn(&mut self, x_delta: f32, y_delta: f32, secs: f32) {
-        self.yaw -= x_delta * secs;
-        self.pitch -= y_delta * secs;
+        self.yaw += x_delta * secs;
+        self.pitch += y_delta * secs;
     }
 
     pub fn translate(&mut self, x_delta: f32, z_delta: f32) {
@@ -36,7 +36,7 @@ impl Camera {
         let pitch_quat = Quat::from_axis_angle(Vec3::X, self.pitch * DEG_TO_RAD);
         let rotation = (pitch_quat * yaw_quat).inverse();
         
-        let forward = rotation * Vec3::NEG_Z;
+        let forward = rotation * Vec3::Z;
         let side = rotation * Vec3::X;
 
         self.position += forward * z_delta + side * x_delta;
