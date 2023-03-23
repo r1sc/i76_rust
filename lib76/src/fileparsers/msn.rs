@@ -110,7 +110,7 @@ pub struct SurfaceParams {
     pub rolling_resistance: f32,
     pub roughness: f32,
     pub visual_quality: u32,
-    pub ddr_per_sec: u32,
+    pub ddr_per_sec: u32, // I think this is damage per sec
 }
 impl Readable for SurfaceParams {
     fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
@@ -268,12 +268,7 @@ impl Readable for ODEFObj {
     {
         let label = reader.read_fixed(8)?;
         let rotation = RotationAxis::consume(reader)?;
-        let mut position = Vec3::consume(reader)?;
-
-        // Localify this position to the terrain slice it's located in
-        position.x %= 640.0;
-        position.z %= 640.0;
-
+        let position = Vec3::consume(reader)?;
         let unk = (0..9)
             .map(|_| reader.read_u32())
             .collect::<Result<_, std::io::Error>>()?;
@@ -294,9 +289,7 @@ impl Readable for ODEFObj {
 }
 
 pub struct LDEFObj {
-    pub label: String, // 8
-    pub class_id: u32,
-    pub unk: u32,
+    pub label: String, // 100
     pub num_strings: u32,
     pub string_positions: Vec<Vec3>, // * num_strings
 }
@@ -305,9 +298,7 @@ impl Readable for LDEFObj {
     where
         Self: Sized,
     {
-        let label = reader.read_fixed(8)?;
-        let class_id = reader.read_u32()?;
-        let unk = reader.read_u32()?;
+        let label = reader.read_fixed(100)?;        
         let num_strings = reader.read_u32()?;
         let string_positions = (0..num_strings)
             .map(|_| Vec3::consume(reader))
@@ -315,8 +306,6 @@ impl Readable for LDEFObj {
 
         Ok(Self {
             label,
-            class_id,
-            unk,
             num_strings,
             string_positions,
         })
