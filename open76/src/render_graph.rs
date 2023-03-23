@@ -15,59 +15,57 @@ pub struct GeoNode {
     pub children: Vec<GeoNode>,
 }
 
-pub fn from<'a, T>(parts: T, geo_cache: &'a mut GeoCache) -> Result<Vec<GeoNode>, std::io::Error>
-where
-    T: Iterator<Item = &'a GEOPart>,
-{
-    let mut root_children: Vec<GeoNode> = vec![];
+pub fn from<'a>(parts: impl Iterator<Item = &'a GEOPart>, geo_cache: &'a mut GeoCache) -> Result<Vec<GeoNode>, std::io::Error>
+    {
+        let mut root_children: Vec<GeoNode> = vec![];
 
-    for part in parts {
-        if part.name == "NULL" {
-            continue;
+        for part in parts {
+            if part.name == "NULL" {
+                continue;
+            }
+
+            geo_cache.get(&part.name[..]).map(|geo| {
+                let node = GeoNode {
+                    geo: geo.clone(),
+                    name: part.name.clone(),
+                    local_position: part.position,
+                    axis: part.axis,
+                    children: vec![],
+                };
+
+                if part.relative_to == "WORLD" {
+                    root_children.push(node);
+                } else {
+                    fn find_parent<'a>(
+                        children: &'a mut Vec<GeoNode>,
+                        relative_to: &str,
+                    ) -> Option<&'a mut GeoNode> {
+                        for parent in children {
+                            if parent.name == relative_to {
+                                return Some(parent);
+                            }
+                            match find_parent(&mut parent.children, relative_to) {
+                                Some(p) => return Some(p),
+                                None => {}
+                            }
+                        }
+                        None
+                    }
+                    match find_parent(&mut root_children, &part.relative_to[..]) {
+                        Some(parent) => {
+                            parent.children.push(node);
+                        }
+                        None => {
+                            root_children.push(node);
+                            println!("Cannot find parent {}", &part.relative_to[..]);
+                        }
+                    }
+                }
+            });
         }
 
-        geo_cache.get(&part.name[..]).map(|geo| {
-            let node = GeoNode {
-                geo: geo.clone(),
-                name: part.name.clone(),
-                local_position: part.position,
-                axis: part.axis,
-                children: vec![],
-            };
-
-            if part.relative_to == "WORLD" {
-                root_children.push(node);
-            } else {
-                fn find_parent<'a>(
-                    children: &'a mut Vec<GeoNode>,
-                    relative_to: &str,
-                ) -> Option<&'a mut GeoNode> {
-                    for parent in children {
-                        if parent.name == relative_to {
-                            return Some(parent);
-                        }
-                        match find_parent(&mut parent.children, relative_to) {
-                            Some(p) => return Some(p),
-                            None => {}
-                        }
-                    }
-                    None
-                }
-                match find_parent(&mut root_children, &part.relative_to[..]) {
-                    Some(parent) => {
-                        parent.children.push(node);
-                    }
-                    None => {
-                        root_children.push(node);
-                        println!("Cannot find parent {}", &part.relative_to[..]);
-                    }
-                }
-            }
-        });
+        Ok(root_children)
     }
-
-    Ok(root_children)
-}
 
 pub enum RenderMode {
     SGEO,
