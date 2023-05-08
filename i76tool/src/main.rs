@@ -36,9 +36,12 @@ enum ZFSCommand {
 }
 
 pub fn convert(data: &[u32]) -> Vec<u8> {
-    let mut res = vec![0; data.len() * 4];
+    let mut res = Vec::with_capacity(data.len() * 4);
     for i in 0..data.len() {
-        res[4 * i..][..4].copy_from_slice(&data[i].to_le_bytes());
+        res.push((data[i] >> 16) as u8);
+        res.push((data[i] >> 8) as u8);
+        res.push(data[i] as u8);
+        res.push(255);
     }
     res
 }
