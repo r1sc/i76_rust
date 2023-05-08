@@ -18,7 +18,7 @@ impl Readable for VCF {
                         wepns.push(WEPN::consume(reader)?);
                     }
                     _ => {
-                        reader.seek(tag.size as i64)?;
+                        reader.seek_relative(tag.size as i64)?;
                     }
                 }
             }

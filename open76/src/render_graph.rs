@@ -5,7 +5,7 @@ use crate::{
     gl::{self},
 };
 use glam::{Vec3, Vec4Swizzles};
-use lib76::fileparsers::{self, bwd2::GEOPart, common::RotationAxis, vtf::VTF, Geo};
+use lib76::fileparsers::{self, bwd2::GEOPart, common::RotationAxis, vtf::VTF, geo::Geo};
 
 pub struct GeoNode {
     pub name: String,
@@ -14,6 +14,7 @@ pub struct GeoNode {
     pub axis: RotationAxis,
     pub children: Vec<GeoNode>,
 }
+
 
 pub fn from<'a>(parts: impl Iterator<Item = &'a GEOPart>, geo_cache: &'a mut GeoCache) -> Result<Vec<GeoNode>, std::io::Error>
     {
@@ -61,7 +62,7 @@ pub fn from<'a>(parts: impl Iterator<Item = &'a GEOPart>, geo_cache: &'a mut Geo
                         }
                     }
                 }
-            });
+            }).unwrap();
         }
 
         Ok(root_children)
@@ -73,7 +74,7 @@ pub enum RenderMode {
 }
 
 fn draw_geo(
-    geo: &fileparsers::Geo,
+    geo: &Geo,
     texture_cache: &mut TextureCache,
     tmt_cache: &mut TMTCache,
     use_face_normals: bool,
@@ -83,7 +84,7 @@ fn draw_geo(
     let white: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
     for face in &geo.faces {
         unsafe {
-            if face.texture_name != "" && face.texture_name != "V1 BO DY" {
+            if face.texture_name != "" && face.texture_name != "V1 BO DY.MAP" {
                 let texture_name = match render_mode {
                     RenderMode::SGEO => &face.texture_name,
                     RenderMode::Vehicle(vtf) => {
@@ -93,13 +94,8 @@ fn draw_geo(
 
                             let filename = &vtf.vtfc.parts[vtf_part_no as usize][..];
                             if filename.ends_with(".TMT") || filename.ends_with(".tmt") {
-                                let tmt = tmt_cache.get(filename);
-                                match tmt {
-                                    Some(tmt) => &tmt.filenames[0][0][..],
-                                    None => {
-                                        panic!("Cannot find TMT file {}", filename)
-                                    }
-                                }
+                                let tmt = tmt_cache.get(filename).expect(&format!("Cannot find TMT: {}", filename));
+                                &tmt.filenames[0][0][..]
                             } else {
                                 filename
                             }
@@ -111,7 +107,8 @@ fn draw_geo(
 
                 texture_cache
                     .get(texture_name)
-                    .map(|tex| gl::BindTexture(gl::TEXTURE_2D, **tex));
+                    .map(|tex| gl::BindTexture(gl::TEXTURE_2D, **tex))
+                    .unwrap();
 
                 // gl::Materialfv(gl::FRONT_AND_BACK, gl::AMBIENT, ambient_color.as_ptr());
                 gl::Materialfv(gl::FRONT_AND_BACK, gl::DIFFUSE, white.as_ptr());

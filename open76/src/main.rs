@@ -7,7 +7,6 @@ mod sky;
 //mod smacker_player;
 mod terrain;
 mod virtual_fs;
-mod ivec;
 
 use glam::{Vec3, Vec4};
 use glfw::{
@@ -16,53 +15,51 @@ use glfw::{
 };
 use std::time::Instant;
 
-use lib76::fileparsers::{self, act::ACT, msn::MSN, vcf::VCF, vdf::VDF};
+use lib76::fileparsers::{act::ACT, msn::MSN, sdf::SDF, vcf::VCF, vdf::VDF};
 use lib76::fileparsers::{ter::TER, vtf::VTF};
 
-use crate::{
-    render_graph::RenderMode,
-    sky::Sky,
-};
+use crate::{render_graph::RenderMode, sky::Sky};
 
-fn load_vcf(vcf_filename: &str) -> Result<(VCF, VDF, VTF), std::io::Error> {
-    let vcf: fileparsers::vcf::VCF =
-        virtual_fs::load(&format!("E:/i76/extracted/{}", vcf_filename))?;
-    let vdf: fileparsers::vdf::VDF =
-        virtual_fs::load(&format!("E:/i76/extracted/{}", vcf.vcfc.vdf_filename))?;
-    let vtf: fileparsers::vtf::VTF =
-        virtual_fs::load(&format!("E:/i76/extracted/{}", vcf.vcfc.vtf_filename))?;
+fn load_vcf(vfs: &virtual_fs::VirtualFS, vcf_filename: &str) -> anyhow::Result<(VCF, VDF, VTF)> {
+    let vcf: VCF = vfs.load(vcf_filename)?;
+    let vdf: VDF = vfs.load(&vcf.vcfc.vdf_filename)?;
+    let vtf: VTF = vfs.load(&vcf.vcfc.vtf_filename)?;
 
     Ok((vcf, vdf, vtf))
 }
-fn main() -> Result<(), std::io::Error> {
+fn main() -> anyhow::Result<()> {
     let mut camera = camera::Camera::new();
 
     println!("Loading data");
-    let msn: MSN = virtual_fs::load("E:/i76/MISSIONS/A01.msn")?;
-    let act: ACT = virtual_fs::load(&format!("E:/i76/extracted/{}", &msn.wrld.act_filename))?;
-    let ter: TER = virtual_fs::load(&format!("E:/i76/MISSIONS/{}", &msn.tdef.zone.ter_filename))?;
+    let vfs = virtual_fs::VirtualFS::new(r"C:\spel\Interstate 76".to_string())?;
+    // let mut files = vfs.get_file_list();
+    // files.sort();
+    // let _ = std::fs::write("filelist.txt", files.join("\n"));
 
-    let mut geo_cache = caches::build_geo_cache();
-    let mut cbk_cache = caches::build_cbk_cache();
-    let mut texture_cache = caches::build_texture_cache(&mut cbk_cache, &act);
-    let mut tmt_cache = caches::build_tmt_cache();
+    let msn: MSN = vfs.load("T01.msn")?;
+    let act: ACT = vfs.load(&msn.wrld.act_filename)?;
+    let ter: TER = vfs.load(&msn.tdef.zone.ter_filename)?;
+
+    let mut geo_cache = caches::build_geo_cache(&vfs);
+    let mut cbk_cache = caches::build_cbk_cache(&vfs);
+    let mut texture_cache = caches::build_texture_cache(&vfs, &mut cbk_cache, &act);
+    let mut tmt_cache = caches::build_tmt_cache(&vfs);
 
     let objects: Vec<_> = msn
         .odef_objs
         .iter()
         .map(|o| {
             if o.class_id == 1 {
-                let (vcf, vdf, vtf) = load_vcf(&format!("{}.vcf", &o.label[..]))?;
+                let (vcf, vdf, vtf) = load_vcf(&vfs, &format!("{}.vcf", &o.label[..]))?;
                 println!(
                     "Building render graph for {} {}",
                     &vdf.vdfc.name, &vcf.vcfc.variant_name
                 );
                 let vdf_graph =
                     render_graph::from(vdf.vgeo.third_person_parts[0][0].iter(), &mut geo_cache)?;
-                Ok((vdf_graph, RenderMode::Vehicle(vtf), o))
+                anyhow::Ok((vdf_graph, RenderMode::Vehicle(vtf), o))
             } else {
-                let sdf: fileparsers::SDF =
-                    virtual_fs::load(&format!("E:/i76/extracted/{}.sdf", &o.label))?;
+                let sdf: SDF = vfs.load(&format!("{}.sdf", &o.label))?;
                 println!(
                     "Building render graph for {} ({})",
                     &sdf.sdfc.name, &o.label
@@ -71,10 +68,10 @@ fn main() -> Result<(), std::io::Error> {
                     sdf.sgeo.lod_levels[0].lod_parts.iter().map(|a| &a.geo_part),
                     &mut &mut geo_cache,
                 )?;
-                Ok((graph, RenderMode::SGEO, o))
+                anyhow::Ok((graph, RenderMode::SGEO, o))
             }
         })
-        .filter_map(|f: Result<_, std::io::Error>| f.ok())
+        .filter_map(|f: anyhow::Result<_>| f.ok())
         .collect();
 
     camera.position = objects
@@ -103,7 +100,8 @@ fn main() -> Result<(), std::io::Error> {
     unsafe {
         unsafe fn resize(w: i32, h: i32) {
             gl::MatrixMode(gl::PROJECTION);
-            let perspective = glam::Mat4::perspective_lh(60.0f32.to_radians(), w as f32 / h as f32, 0.1, 1000.0);
+            let perspective =
+                glam::Mat4::perspective_lh(60.0f32.to_radians(), w as f32 / h as f32, 0.1, 1000.0);
             gl::LoadMatrixf(&perspective.to_cols_array() as *const _);
 
             gl::MatrixMode(gl::MODELVIEW);
@@ -175,9 +173,9 @@ fn main() -> Result<(), std::io::Error> {
                 &msn.tdef.zmap,
                 &ter,
                 camera.position.x,
-				camera.position.y,
+                camera.position.y,
                 camera.position.z,
-                50,
+                100,
             );
 
             for object in &objects {

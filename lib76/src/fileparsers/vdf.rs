@@ -22,7 +22,7 @@ impl Readable for VDF {
                 "VLOC" => vlocs.push(VLOC::consume(reader)?),
                 "VGEO" => vgeo = Some(VGEO::consume(reader)?),
                 _ => {
-                    reader.seek(tag.size as i64)?;
+                    reader.seek_relative(tag.size as i64)?;
                 }
             }
         }
@@ -62,6 +62,7 @@ impl Readable for VDFC {
         let collision_multiplier = reader.read_f32()?;
         let drag_coefficient = reader.read_f32()?;
         let unk = reader.read_u32()?;
+        let vpit = reader.read_fixed(13)?;
 
         Ok(Self {
             name,

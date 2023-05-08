@@ -1,4 +1,4 @@
-use glam::{vec3, Vec3};
+use glam::vec3;
 use lib76::fileparsers::{msn::ZMAP, ter::TER};
 
 use crate::gl::{self, types::GLuint};

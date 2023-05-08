@@ -4,5 +4,6 @@ members = [
     "open76",
     "lib76",
     "libsmacker-sys",
-    "libsmacker"
+    "libsmacker",
+    "lzo-sys"
 ]

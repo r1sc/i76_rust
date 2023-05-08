@@ -1,6 +1,5 @@
 use std::{
-    fs::File,
-    io::{BufReader, Read, Seek, SeekFrom},
+    io::{BufReader, Read, Seek, SeekFrom, BufRead},
 };
 
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -13,8 +12,11 @@ pub trait Readable {
         Self: Sized;
 }
 
+pub trait SeekRead: Seek + Read {}
+impl<T: Seek + Read> SeekRead for T {}
+
 pub struct BinaryReader {
-    pub reader: BufReader<File>,
+    pub reader: BufReader<Box<dyn SeekRead>>,
 }
 
 impl BinaryReader {
@@ -90,12 +92,22 @@ impl BinaryReader {
     }
 
     pub fn bwd2_tag(&mut self) -> Result<BWD2Tag, std::io::Error> {
-        let name = self.read_fixed(4)?;
+        let name = self.read_fixed(4)?.to_uppercase();
         let size = self.read_u32()? -8;
         Ok(BWD2Tag { name, size })
     }
 
-    pub fn seek(&mut self, offset: i64) -> Result<u64, std::io::Error> {
+    pub fn seek_relative(&mut self, offset: i64) -> Result<u64, std::io::Error> {
         self.reader.seek(SeekFrom::Current(offset))
+    }
+
+    pub fn seek_from_start(&mut self, offset: u64) -> Result<u64, std::io::Error> {
+        self.reader.seek(SeekFrom::Start(offset))
+    }
+
+    pub fn read_line(&mut self) -> Result<String, std::io::Error> {
+        let mut line = String::new();
+        let _ = self.reader.read_line(&mut line)?;
+        Ok(line.trim_end().into())
     }
 }

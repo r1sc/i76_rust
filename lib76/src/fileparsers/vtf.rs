@@ -14,7 +14,7 @@ impl Readable for VTF {
             match &tag.name[..] {
                 "VTFC" => vtfc = Some(VTFC::consume(reader)?),
                 _ => {
-                    reader.seek(tag.size as i64)?;
+                    reader.seek_relative(tag.size as i64)?;
                 }
             }
         }
@@ -45,8 +45,9 @@ impl Readable for VTFC {
     }
 }
 
-pub fn car_texture_name_to_vtf_loc(texture_name: &str) -> u32 {
-    let mut splitted = texture_name.split_whitespace();
+pub fn car_texture_name_to_vtf_loc(texture_name: &str) -> u32 {    
+    let upper = texture_name.to_uppercase().replace(".MAP", "").replace(".VQM", "");
+    let mut splitted = upper.split_whitespace();
     match (splitted.next(), splitted.next(), splitted.next()) {        
         (Some("V1"), Some(md), Some(rt)) => {
             let major = match md {

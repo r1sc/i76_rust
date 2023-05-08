@@ -15,4 +15,5 @@ lib76 = { path = "../lib76" }
 libsmacker = { path = "../libsmacker" }
 glam = "0.23"
 glow = "0.12.1"
-
+anyhow = "1.0.70"
+lzo-sys = { path = "../lzo-sys" }

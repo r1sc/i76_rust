@@ -3,13 +3,13 @@ use super::{
     binary_reader::{BinaryReader, Readable},
 };
 
-pub struct Map {
+pub struct MAP {
     pub width: u32,
     pub height: u32,
     pub clut_refs: Vec<u8>,
 }
 
-impl Readable for Map {
+impl Readable for MAP {
     fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let width = reader.read_u32()?;
         let height = reader.read_u32()?;
@@ -22,7 +22,7 @@ impl Readable for Map {
     }
 }
 
-impl Map {
+impl MAP {
     pub fn to_rgba_pixels(&self, act: &ACT) -> Vec<u32> {
         self.clut_refs
             .iter()
