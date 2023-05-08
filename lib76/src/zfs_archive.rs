@@ -51,6 +51,21 @@ impl ZFSArchive {
         Ok(this)
     }
 
+    pub fn get_file_list(&self) -> Vec<String> {
+        self.zfs.files.keys().cloned().collect()
+    }
+
+    pub fn load<T>(&self, name: &str) -> Result<T, std::io::Error>
+    where
+        T: Readable,
+    {
+        let data = self.get_archive_data(name)?;
+        let mut br = BinaryReader {
+            reader: BufReader::new(Box::new(Cursor::new(data))),
+        };
+        T::consume(&mut br)
+    }
+
     pub fn get_archive_data(&self, name: &str) -> Result<Vec<u8>, std::io::Error> {
         if let Some(entry) = self.zfs.files.get(&name.to_lowercase()) {
             match entry {

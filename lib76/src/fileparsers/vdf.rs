@@ -62,7 +62,7 @@ impl Readable for VDFC {
         let collision_multiplier = reader.read_f32()?;
         let drag_coefficient = reader.read_f32()?;
         let unk = reader.read_u32()?;
-        let vpit = reader.read_fixed(13)?;
+        let _vpit = reader.read_fixed(13)?;
 
         Ok(Self {
             name,

@@ -186,7 +186,7 @@ impl Readable for WRLD {
         let scrounge_sdf_filename = reader.read_fixed(13)?;
         let surface_texture_filename = reader.read_fixed(13)?;
         let level_map_filename = reader.read_fixed(13)?;
-        let hzd_filename = reader.read_fixed(13)?;
+        let _horizon_definition_filename = reader.read_fixed(13)?;
         let time_of_day = reader.read_u32()?;
         let surface_params_dirt = SurfaceParams::consume(reader)?;
         let surface_params_light_veg = SurfaceParams::consume(reader)?;

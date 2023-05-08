@@ -1,5 +1,3 @@
-use std::io::BufRead;
-
 use super::binary_reader::Readable;
 
 pub struct FileInfo {

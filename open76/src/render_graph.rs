@@ -79,7 +79,7 @@ fn draw_geo(
     tmt_cache: &mut TMTCache,
     use_face_normals: bool,
     render_mode: &RenderMode,
-    ambient_color: &[f32; 4],
+    _ambient_color: &[f32; 4],
 ) {
     let white: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
     for face in &geo.faces {

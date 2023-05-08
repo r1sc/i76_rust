@@ -2,14 +2,12 @@ use std::{
     fs::File,
     io::{BufReader, Cursor},
     path::Path,
-    ptr::null_mut,
 };
 
-use anyhow::bail;
-use lib76::{fileparsers::{
-    binary_reader::{BinaryReader, Readable},
-    zfs::ZFSEntry,
-}, zfs_archive::ZFSArchive};
+use lib76::{
+    fileparsers::binary_reader::{BinaryReader, Readable},
+    zfs_archive::ZFSArchive,
+};
 
 pub struct VirtualFS {
     zfs_archive: ZFSArchive,
@@ -34,7 +32,7 @@ impl VirtualFS {
 
         Ok(Self {
             game_path,
-            zfs_archive: ZFSArchive::new(zfs_path)?
+            zfs_archive: ZFSArchive::new(zfs_path)?,
         })
     }
 
