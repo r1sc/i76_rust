@@ -94,7 +94,7 @@ fn main() -> anyhow::Result<()> {
 
     gl::load_with(|s| window.get_proc_address(s));
 
-    let light_pos = Vec4::new(5.0, 5.0, 5.0, 0.0).to_array().as_ptr();
+    let light_pos = Vec4::new(-1.0, 1.0, -1.0, 0.0).to_array().as_ptr();
     let ambient_color = act.entries[247].to_vec3().extend(1.0).to_array();
 
     unsafe {

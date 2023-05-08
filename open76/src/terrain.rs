@@ -94,7 +94,7 @@ pub fn render_terrain(
                 gl::Normal3f(n.x, n.y, n.z);
                 gl::Vertex3f(world_x, p2, world_z2);
 
-                gl::TexCoord2f(world_x/ 128.0, world_z1/ 128.0);
+                gl::TexCoord2f(world_x / 128.0, world_z1 / 128.0);
                 gl::Normal3f(n.x, n.y, n.z);
                 gl::Vertex3f(world_x, p1, world_z1);
             }

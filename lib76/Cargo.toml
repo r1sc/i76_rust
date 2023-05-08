@@ -8,4 +8,5 @@ edition = "2021"
 
 [dependencies]
 byteorder = "1.4.3"
-glam = "0.23"
+glam = "0.24"
+lzo-sys = { path = "../lzo-sys" }

@@ -13,7 +13,6 @@ rodio = "0.17"
 glfw = "0.51.0"
 lib76 = { path = "../lib76" }
 libsmacker = { path = "../libsmacker" }
-glam = "0.23"
+glam = "0.24"
 glow = "0.12.1"
 anyhow = "1.0.70"
-lzo-sys = { path = "../lzo-sys" }
