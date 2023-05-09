@@ -1,15 +1,16 @@
 use std::{fs::File, io::BufWriter, path::Path};
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use lib76::{
     fileparsers::{act::ACT, cbk::CBK, map::MAP, vqm::VQM},
     zfs_archive,
 };
+use wax::{Glob, Pattern};
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
-struct Args {
+struct Cli {
     /// Path to I76.ZFS
     zfs_path: String,
 
@@ -17,21 +18,15 @@ struct Args {
     command: ZFSCommand,
 }
 
-#[derive(Debug, Clone, Subcommand)]
+#[derive(Debug, Subcommand)]
 enum ZFSCommand {
     /// Lists files in the ZFS (note these commands skip all .pix and .pak files - their contents are listed instead)
     ListFiles,
-    /// Extracts a file from the ZFS
+    /// Extracts files from the ZFS by pattern
     Extract {
-        filename: String,
+        pattern: String,
         target_folder: String,
-    },
-    /// Extracts all files from the ZFS
-    ExtractAll { target_folder: String },
-    /// Extracts all textures from the ZFS and encodes them as PNG
-    ExtractAllTextures {
-        target_folder: String,
-        act_filename: String,
+        act_filename: Option<String>,
     },
 }
 
@@ -47,7 +42,7 @@ pub fn convert(data: &[u32]) -> Vec<u8> {
 }
 
 fn main() -> Result<(), std::io::Error> {
-    let args = Args::parse();
+    let args = Cli::parse();
 
     let archive = zfs_archive::ZFSArchive::new(args.zfs_path)?;
 
@@ -86,44 +81,49 @@ fn main() -> Result<(), std::io::Error> {
             }
         }
         ZFSCommand::Extract {
-            filename,
+            pattern,
             target_folder,
+            act_filename,
         } => {
-            if let Err(e) = extract_file(&filename, &target_folder) {
-                println!("Failed to extract file {}, got error {}", filename, e)
-            }
-        }
-        ZFSCommand::ExtractAll { target_folder } => {
+            let glob = Glob::new(&pattern).unwrap();
+
+            let act: Option<ACT> = act_filename
+                .map(|act_filename| archive.load(&act_filename).expect("Failed to load ACT"));
+
             let file_list = archive.get_file_list();
             for file in file_list {
                 if file.ends_with(".pix") || file.ends_with(".pak") {
                     continue;
                 }
-                if let Err(e) = extract_file(&file, &target_folder) {
-                    println!("Failed to extract file {}, got error {}", file, e)
+                if !glob.is_match(&file[..]) {
+                    continue;
                 }
-            }
-        }
-        ZFSCommand::ExtractAllTextures {
-            target_folder,
-            act_filename,
-        } => {
-            let act: ACT = archive.load(&act_filename)?;
-            let file_list = archive.get_file_list();
-            for file in file_list {
-                if file.ends_with(".map") {
-                    let target_path = format!("{}/{}.png", target_folder, &file);
-                    let map: MAP = archive.load(&file)?;
 
-                    let pixels = map.to_rgba_pixels(&act);
-                    write_png(map.width, map.height, &pixels, &target_path)?;
-                } else if file.ends_with(".vqm") {
+                if file.ends_with(".map") && act.is_some() {
                     let target_path = format!("{}/{}.png", target_folder, &file);
-                    let vqm: VQM = archive.load(&file)?;
-                    let cbk: CBK = archive.load(&vqm.cbk_filename.to_lowercase())?;
+                    
+                    match archive.load::<MAP>(&file) {
+                        Ok(map) => {
+                            let pixels = map.to_rgba_pixels(&act.as_ref().unwrap());
+                            write_png(map.width, map.height, &pixels, &target_path)?;
+                        }
+                        Err(e) => println!("Failed to extract file {}, got error {}", file, e),
+                    }
+                } else if file.ends_with(".vqm") && act.is_some() {
+                    let target_path = format!("{}/{}.png", target_folder, &file);
 
-                    let pixels = vqm.to_rgba_pixels(&cbk, &act);
-                    write_png(vqm.width, vqm.height, &pixels, &target_path)?;
+                    match archive.load::<VQM>(&file) {
+                        Ok(vqm) => {
+                            let cbk: CBK = archive.load(&vqm.cbk_filename.to_lowercase())?;
+                            let pixels = vqm.to_rgba_pixels(&cbk, &act.as_ref().unwrap());
+                            write_png(vqm.width, vqm.height, &pixels, &target_path)?;
+                        }
+                        Err(e) => println!("Failed to extract file {}, got error {}", file, e),
+                    }
+                } else {
+                    if let Err(e) = extract_file(&file, &target_folder) {
+                        println!("Failed to extract file {}, got error {}", file, e)
+                    }
                 }
             }
         }

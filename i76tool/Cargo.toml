@@ -9,3 +9,4 @@ edition = "2021"
 clap = { version = "4.2.7", features = ["derive"] }
 lib76 = { path = "../lib76" }
 png = "0.17.8"
+wax = "0.5.0"
