@@ -63,7 +63,7 @@ impl Readable for SDFC {
         let unk = reader.read_u32()?;
         let lods = (0..5)
             .map(|_| reader.read_f32())
-            .collect::<Result<Vec<f32>, std::io::Error>>()?;
+            .collect::<Result<_, _>>()?;
         let health = reader.read_u32()?;
         let xdf_name = reader.read_fixed(13)?;
         let death_sound_name = reader.read_fixed(13)?;
@@ -112,10 +112,10 @@ impl LodLevel {
     {
         let lod_parts = (0..num_parts)
             .map(|_| SGEOPart::consume(reader))
-            .collect::<Result<Vec<SGEOPart>, std::io::Error>>()?;
+            .collect::<Result<_, _>>()?;
         let destroyed_parts = (0..num_parts)
             .map(|_| SGEOPart::consume(reader))
-            .collect::<Result<Vec<SGEOPart>, std::io::Error>>()?;
+            .collect::<Result<_, _>>()?;
 
         Ok(Self {
             lod_parts,

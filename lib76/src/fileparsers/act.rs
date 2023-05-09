@@ -10,7 +10,7 @@ impl Readable for ACT {
     {
         let entries: Vec<_> = (0..256)
             .map(|_| ColorRGB::consume(reader))
-            .collect::<Result<_, std::io::Error>>()?;
+            .collect::<Result<_, _>>()?;
         Ok(Self { entries })
     }
 }

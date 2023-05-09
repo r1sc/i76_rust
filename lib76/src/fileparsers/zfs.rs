@@ -58,7 +58,7 @@ impl Readable for ZFS {
                 let _unk = reader.read_u32()?;
                 let compression = reader.read_u8()?;
                 let mut decompressed_length = reader.read_u16()? as u32;
-                decompressed_length = ((reader.read_u8()? as u32) << 16) | decompressed_length;
+                decompressed_length |= (reader.read_u8()? as u32) << 16;
 
                 if filename.ends_with(".pix") {
                     pix_files.push(filename.clone());

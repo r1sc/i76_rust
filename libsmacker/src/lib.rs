@@ -67,70 +67,70 @@ pub struct AudioInfo {
     pub sample_rate: [u32; 7],
 }
 
-pub fn stream_info(ctx: *mut ffi::smk_t) -> Option<StreamInfo> {
-    unsafe {
-        let mut current_frame: u32 = 0;
-        let mut frame_count: u32 = 0;
-        let mut microseconds_per_frame: f64 = 0.0;
-        let result = ffi::smk_info_all(
-            ctx,
-            &mut current_frame,
-            &mut frame_count,
-            &mut microseconds_per_frame,
-        );
-        if result == ffi::SMK_ERROR {
-            None
-        } else {
-            Some(StreamInfo {
-                current_frame,
-                frame_count,
-                microseconds_per_frame,
-            })
-        }
+/// # Safety
+/// ctx must not be null
+pub unsafe fn stream_info(ctx: *mut ffi::smk_t) -> Option<StreamInfo> {
+    let mut current_frame: u32 = 0;
+    let mut frame_count: u32 = 0;
+    let mut microseconds_per_frame: f64 = 0.0;
+    let result = ffi::smk_info_all(
+        ctx,
+        &mut current_frame,
+        &mut frame_count,
+        &mut microseconds_per_frame,
+    );
+    if result == ffi::SMK_ERROR {
+        None
+    } else {
+        Some(StreamInfo {
+            current_frame,
+            frame_count,
+            microseconds_per_frame,
+        })
     }
 }
 
-pub fn video_info(ctx: *mut ffi::smk_t) -> Option<VideoInfo> {
-    unsafe {
-        let mut width: u32 = 0;
-        let mut height: u32 = 0;
-        let mut y_scale_mode: u8 = 0;
-        let result = ffi::smk_info_video(ctx, &mut width, &mut height, &mut y_scale_mode);
-        if result == ffi::SMK_ERROR {
-            None
-        } else {
-            Some(VideoInfo {
-                width,
-                height,
-                y_scale_mode: YScaleMode::from_u8(y_scale_mode).unwrap_or(YScaleMode::None),
-            })
-        }
+/// # Safety
+/// ctx must not be null
+pub unsafe fn video_info(ctx: *mut ffi::smk_t) -> Option<VideoInfo> {
+    let mut width: u32 = 0;
+    let mut height: u32 = 0;
+    let mut y_scale_mode: u8 = 0;
+    let result = ffi::smk_info_video(ctx, &mut width, &mut height, &mut y_scale_mode);
+    if result == ffi::SMK_ERROR {
+        None
+    } else {
+        Some(VideoInfo {
+            width,
+            height,
+            y_scale_mode: YScaleMode::from_u8(y_scale_mode).unwrap_or(YScaleMode::None),
+        })
     }
 }
 
-pub fn audio_info(ctx: *mut ffi::smk_t) -> Option<AudioInfo> {
-    unsafe {
-        let mut track_mask: u8 = 0;
-        let mut channels: [u8; 7] = [0; 7];
-        let mut bit_depth: [u8; 7] = [0; 7];
-        let mut sample_rate: [u32; 7] = [0; 7];
-        let result = ffi::smk_info_audio(
-            ctx,
-            &mut track_mask,
-            channels.as_mut_ptr(),
-            bit_depth.as_mut_ptr(),
-            sample_rate.as_mut_ptr(),
-        );
-        if result == ffi::SMK_ERROR {
-            None
-        } else {
-            Some(AudioInfo {
-                track_mask: EnableMask::from_bits(track_mask).unwrap_or(EnableMask::empty()),
-                channels,
-                bit_depth,
-                sample_rate,
-            })
-        }
+/// # Safety
+/// ctx must not be null
+pub unsafe fn audio_info(ctx: *mut ffi::smk_t) -> Option<AudioInfo> {
+    let mut track_mask: u8 = 0;
+    let mut channels: [u8; 7] = [0; 7];
+    let mut bit_depth: [u8; 7] = [0; 7];
+    let mut sample_rate: [u32; 7] = [0; 7];
+    let result = ffi::smk_info_audio(
+        ctx,
+        &mut track_mask,
+        channels.as_mut_ptr(),
+        bit_depth.as_mut_ptr(),
+        sample_rate.as_mut_ptr(),
+    );
+    if result == ffi::SMK_ERROR {
+        None
+    } else {
+        Some(AudioInfo {
+            track_mask: EnableMask::from_bits(track_mask).unwrap_or(EnableMask::empty()),
+            channels,
+            bit_depth,
+            sample_rate,
+        })
     }
 }
 

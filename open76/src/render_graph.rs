@@ -45,9 +45,9 @@ pub fn from<'a>(parts: impl Iterator<Item = &'a GEOPart>, geo_cache: &'a mut Geo
                             if parent.name == relative_to {
                                 return Some(parent);
                             }
-                            match find_parent(&mut parent.children, relative_to) {
-                                Some(p) => return Some(p),
-                                None => {}
+                            
+                            if let Some(p) = find_parent(&mut parent.children, relative_to) {
+                                return Some(p)
                             }
                         }
                         None
@@ -69,7 +69,7 @@ pub fn from<'a>(parts: impl Iterator<Item = &'a GEOPart>, geo_cache: &'a mut Geo
     }
 
 pub enum RenderMode {
-    SGEO,
+    SGeo,
     Vehicle(VTF),
 }
 
@@ -84,9 +84,9 @@ fn draw_geo(
     let white: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
     for face in &geo.faces {
         unsafe {
-            if face.texture_name != "" && face.texture_name != "V1 BO DY.MAP" {
+            if !face.texture_name.is_empty() && face.texture_name != "V1 BO DY.MAP" {
                 let texture_name = match render_mode {
-                    RenderMode::SGEO => &face.texture_name,
+                    RenderMode::SGeo => &face.texture_name,
                     RenderMode::Vehicle(vtf) => {
                         if face.texture_name.starts_with("V1") {
                             let vtf_part_no =
@@ -94,7 +94,7 @@ fn draw_geo(
 
                             let filename = &vtf.vtfc.parts[vtf_part_no as usize][..];
                             if filename.ends_with(".TMT") || filename.ends_with(".tmt") {
-                                let tmt = tmt_cache.get(filename).expect(&format!("Cannot find TMT: {}", filename));
+                                let tmt = tmt_cache.get(filename).unwrap_or_else(|_| panic!("Cannot find TMT: {}", filename));
                                 &tmt.filenames[0][0][..]
                             } else {
                                 filename

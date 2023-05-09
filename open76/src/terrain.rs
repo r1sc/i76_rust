@@ -16,8 +16,8 @@ pub fn render_terrain(
     let camera_cell_z = (camera_z as i32) / 5;
 
     let get_height_at_relative_cell = move |x: i32, z: i32| {
-        let absolute_x = (camera_cell_x as i32) + x;
-        let absolute_z = (camera_cell_z as i32) + z;
+        let absolute_x = camera_cell_x + x;
+        let absolute_z = camera_cell_z + z;
 
         let block_x = absolute_x / 128;
         let block_z = absolute_z / 128;
@@ -39,8 +39,8 @@ pub fn render_terrain(
 
                     let height = heightmap_point & 0xfff;
                     let height_unscaled = (height as f32) / 4096.0;
-                    let height_scaled = height_unscaled * 409.6; // TODO: Investigate
-                    height_scaled
+                     // TODO: Investigate
+                    height_unscaled * 409.6
                 }
                 None => 0.0, // Block doesn't exist, return default height
             }
@@ -77,7 +77,7 @@ pub fn render_terrain(
 
             let p2 = get_height_at_relative_cell(x, z + 1);
 
-            let world_z2 = (((camera_cell_z as i32) + z + 1) * 5) as f32;
+            let world_z2 = ((camera_cell_z + z + 1) * 5) as f32;
 
             let p3 = get_height_at_relative_cell(x + 1, z);
 

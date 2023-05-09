@@ -50,7 +50,7 @@ impl VirtualFS {
 
     pub fn exists(&self, name: &str) -> bool {
         let disk_path = self.get_disk_path(name);
-        let exists_on_disk = std::fs::metadata(&disk_path).is_ok();
+        let exists_on_disk = std::fs::metadata(disk_path).is_ok();
 
         self.zfs_archive.exists(name) || exists_on_disk
     }

@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 
         mod __gl_imports {
             pub use std::mem;

@@ -1,8 +1,10 @@
 use std::{collections::{HashMap}, rc::Rc};
 
+type LoaderFn<'a, T> = dyn FnMut(&str) -> anyhow::Result<T> + 'a;
+
 pub struct FileCache<'a, T> {
     content: HashMap<String, Rc<T>>,
-    loader: Box<dyn FnMut(&str) -> anyhow::Result<T> + 'a>,
+    loader: Box<LoaderFn<'a, T>>,
 }
 
 impl<'a, T> FileCache<'a, T> {

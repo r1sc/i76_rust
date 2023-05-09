@@ -9,11 +9,9 @@ use crate::{
     virtual_fs::VirtualFS,
 };
 
-pub fn build_cbk_cache<'a>(vfs: &'a VirtualFS) -> FileCache<'a, CBK> {
+pub fn build_cbk_cache(vfs: &VirtualFS) -> FileCache<CBK> {
     cache::FileCache::new(|name| vfs.load(name))
 }
-
-pub type TextureCache<'a> = FileCache<'a, GLuint>;
 
 fn load_gl_texture(width: u32, height: u32, rgba_texture: &[u32]) -> u32 {
     const GL_BGRA_EXT: u32 = 0x80E1;
@@ -40,6 +38,7 @@ fn load_gl_texture(width: u32, height: u32, rgba_texture: &[u32]) -> u32 {
     texture
 }
 
+pub type TextureCache<'a> = FileCache<'a, GLuint>;
 pub fn build_texture_cache<'a>(
     vfs: &'a VirtualFS,
     cbk_cache: &'a mut FileCache<CBK>,
@@ -55,23 +54,22 @@ pub fn build_texture_cache<'a>(
         let vqm_path = format!("{}.vqm", fixed_name);
         let map_path = format!("{}.map", fixed_name);
 
-
         let tex = match (vfs.exists(&vqm_path), vfs.exists(&map_path)) {
             (true, _) => {
                 let vqm: VQM = vfs
                     .load(&vqm_path)
-                    .expect(&format!("Failed to load {}", vqm_path));
+                    .unwrap_or_else(|_| panic!("Failed to load {}", vqm_path));
                 let cbk = cbk_cache.get(&vqm.cbk_filename)?;
                 anyhow::Ok(load_gl_texture(
                     vqm.width,
                     vqm.height,
-                    &vqm.to_rgba_pixels(&cbk, act),
+                    &vqm.to_rgba_pixels(cbk, act),
                 ))
             }
             (_, true) => {
                 let map: MAP = vfs
                     .load(&map_path)
-                    .expect(&format!("Failed to load {}", map_path));
+                    .unwrap_or_else(|_| panic!("Failed to load {}", map_path));
                 anyhow::Ok(load_gl_texture(
                     map.width,
                     map.height,
@@ -86,11 +84,11 @@ pub fn build_texture_cache<'a>(
 }
 
 pub type GeoCache<'a> = FileCache<'a, Geo>;
-pub fn build_geo_cache<'a>(vfs: &'a VirtualFS) -> GeoCache<'a> {
+pub fn build_geo_cache(vfs: &VirtualFS) -> GeoCache {
     cache::FileCache::new(|name| vfs.load(&format!("{}.geo", name)))
 }
 
 pub type TMTCache<'a> = FileCache<'a, TMT>;
-pub fn build_tmt_cache<'a>(vfs: &'a VirtualFS) -> TMTCache<'a> {
+pub fn build_tmt_cache(vfs: &VirtualFS) -> TMTCache {
     cache::FileCache::new(|name| vfs.load(name))
 }

@@ -66,9 +66,9 @@ fn main() -> anyhow::Result<()> {
                 );
                 let graph = render_graph::from(
                     sdf.sgeo.lod_levels[0].lod_parts.iter().map(|a| &a.geo_part),
-                    &mut &mut geo_cache,
+                    &mut geo_cache,
                 )?;
-                anyhow::Ok((graph, RenderMode::SGEO, o))
+                anyhow::Ok((graph, RenderMode::SGeo, o))
             }
         })
         .filter_map(|f: anyhow::Result<_>| f.ok())
@@ -244,5 +244,5 @@ fn main() -> anyhow::Result<()> {
         ));
     }
 
-    return Ok(());
+    Ok(())
 }

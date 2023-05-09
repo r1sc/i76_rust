@@ -64,7 +64,13 @@ impl BinaryReader {
         Ok(buffer)
     }
 
-    pub fn len(&mut self) -> Result<u64, std::io::Error> {
+    pub fn rest(&mut self) -> Result<Vec<u8>, std::io::Error> {
+        let mut buffer = Vec::new();
+        self.reader.read_to_end(&mut buffer)?;
+        Ok(buffer)
+    }
+
+    pub fn size(&mut self) -> Result<u64, std::io::Error> {
         let pos = self.reader.stream_position()?;
         let end_pos = self.reader.seek(SeekFrom::End(0))?;
         let len = end_pos - pos;
@@ -74,16 +80,16 @@ impl BinaryReader {
     }
 
     pub fn rest_bytes_u8(&mut self) -> Result<Vec<u8>, std::io::Error> {
-        let len = self.len()?;
+        let len = self.size()?;
 
-        let mut result: Vec<u8> = Vec::with_capacity(len as usize);
-        self.reader.read(&mut result)?;
+        let mut result: Vec<u8> = vec![0; len as usize];
+        self.reader.read_exact(&mut result)?;
 
         Ok(result)
     }
 
     pub fn rest_bytes_u16(&mut self) -> Result<Vec<u16>, std::io::Error> {
-        let len = self.len()?;
+        let len = self.size()?;
 
         let mut result: Vec<u16> = vec![0; (len / 2) as usize];
         self.reader.read_u16_into::<LittleEndian>(&mut result)?;

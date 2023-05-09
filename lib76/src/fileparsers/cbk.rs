@@ -11,7 +11,7 @@ impl Readable for CBK {
         let num_entries = reader.read_u32()?;
         let patterns = (0..num_entries)
             .map(|_| reader.bytes(16))
-            .collect::<Result<Vec<Vec<_>>, std::io::Error>>()?;
+            .collect::<Result<_, _>>()?;
 
         Ok(Self {
             num_entries,

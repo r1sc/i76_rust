@@ -66,7 +66,7 @@ pub fn car_texture_name_to_vtf_loc(texture_name: &str) -> u32 {
                 "UN" => 5,
                 _ => { panic!("Unknown minor car texture part {}", rt ); }
             };
-            return major + minor;
+            major + minor
         },
         _ => { 
             panic!("Unknown car texture part {}", texture_name); 

@@ -19,7 +19,7 @@ impl Readable for PIX {
         let _num_files = reader.read_line()?;
 
         while let Ok(line) = reader.read_line() {
-            if line.len() == 0 {
+            if line.is_empty() {
                 break;
             }
             

@@ -9,7 +9,7 @@ impl Readable for TER {
     where
         Self: Sized,
     {
-        let len = reader.len()?;
+        let len = reader.size()?;
 
         let block_size = 128 * 128;
         let entry_size = 2 * block_size;
