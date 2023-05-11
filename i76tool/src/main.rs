@@ -1,8 +1,19 @@
-use std::{fs::File, io::BufWriter, path::Path};
+use std::{
+    fs::File,
+    io::{BufReader, BufWriter, LineWriter, Write},
+    path::Path,
+};
 
 use clap::{Parser, Subcommand};
 use lib76::{
-    fileparsers::{act::ACT, cbk::CBK, map::MAP, vqm::VQM},
+    fileparsers::{
+        act::ACT,
+        binary_reader::{BinaryReader, Readable},
+        cbk::CBK,
+        map::MAP,
+        msn::{MSN, FSMOpcode},
+        vqm::VQM,
+    },
     zfs_archive,
 };
 use wax::{Glob, Pattern};
@@ -11,9 +22,6 @@ use wax::{Glob, Pattern};
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    /// Path to I76.ZFS
-    zfs_path: String,
-
     #[command(subcommand)]
     command: ZFSCommand,
 }
@@ -21,13 +29,20 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum ZFSCommand {
     /// Lists files in the ZFS (note these commands skip all .pix and .pak files - their contents are listed instead)
-    ListFiles,
+    ListFiles {
+        /// Path to I76.ZFS
+        zfs_path: String,
+    },
     /// Extracts files from the ZFS by pattern
     Extract {
+        /// Path to I76.ZFS
+        zfs_path: String,
         pattern: String,
         target_folder: String,
         act_filename: Option<String>,
     },
+    /// Decompile mission script from mission file
+    Decompile { msn_path: String },
 }
 
 pub fn convert(data: &[u32]) -> Vec<u8> {
@@ -44,8 +59,6 @@ pub fn convert(data: &[u32]) -> Vec<u8> {
 fn main() -> Result<(), std::io::Error> {
     let args = Cli::parse();
 
-    let archive = zfs_archive::ZFSArchive::new(args.zfs_path)?;
-
     let write_png =
         |width: u32, height: u32, data: &[u32], target_path: &str| -> Result<(), std::io::Error> {
             let path = Path::new(target_path);
@@ -61,7 +74,10 @@ fn main() -> Result<(), std::io::Error> {
             Ok(())
         };
 
-    let extract_file = |which: &str, target_folder: &str| -> Result<(), std::io::Error> {
+    let extract_file = |archive: &zfs_archive::ZFSArchive,
+                        which: &str,
+                        target_folder: &str|
+     -> Result<(), std::io::Error> {
         let target_path = format!("{}/{}", target_folder, which);
         let data = archive.get_archive_data(which)?;
         std::fs::write(target_path, data)?;
@@ -70,7 +86,9 @@ fn main() -> Result<(), std::io::Error> {
     };
 
     match args.command {
-        ZFSCommand::ListFiles => {
+        ZFSCommand::ListFiles { zfs_path } => {
+            let archive = zfs_archive::ZFSArchive::new(zfs_path)?;
+
             let mut file_list = archive.get_file_list();
             file_list.sort();
             for file in file_list {
@@ -81,10 +99,12 @@ fn main() -> Result<(), std::io::Error> {
             }
         }
         ZFSCommand::Extract {
+            zfs_path,
             pattern,
             target_folder,
             act_filename,
         } => {
+            let archive = zfs_archive::ZFSArchive::new(zfs_path)?;
             let glob = Glob::new(&pattern).unwrap();
 
             let act: Option<ACT> = act_filename
@@ -120,10 +140,77 @@ fn main() -> Result<(), std::io::Error> {
                         }
                         Err(e) => println!("Failed to extract file {}, got error {}", file, e),
                     }
-                } else if let Err(e) = extract_file(&file, &target_folder) {
+                } else if let Err(e) = extract_file(&archive, &file, &target_folder) {
                     println!("Failed to extract file {}, got error {}", file, e)
                 }
             }
+        }
+        ZFSCommand::Decompile { msn_path } => {
+            let mut br = BinaryReader {
+                reader: BufReader::new(Box::new(File::open(msn_path)?)),
+            };
+            let msn = MSN::consume(&mut br)?;
+
+            println!("[Actions]");
+            for (i, action) in msn.fsm.action_table.iter().enumerate() {
+                println!("{} {}", i, action);
+            }
+            println!();
+
+            println!("[SoundClips]");
+            for (i, clip) in msn.fsm.sound_clip_table.iter().enumerate() {
+                println!("{} {}", i, clip);
+            }
+            println!();
+
+            println!("[Entities]");
+            for (i, entity) in msn.fsm.entity_table.iter().enumerate() {
+                println!("{} {} {} {}", i, entity.id, entity.label, entity.value);
+            }
+            println!();
+
+            println!("[Paths]");
+            for (i, path) in msn.fsm.paths.iter().enumerate() {
+                let points: Vec<_> = path
+                    .points
+                    .iter()
+                    .map(|p| format!("({}, {}, {})", p.x, p.y, p.z))
+                    .collect();
+
+                println!("{} {} [{}]", i, path.name, points.join(", "));
+            }
+            println!();
+
+            println!("[Constants]");
+            for c in msn.fsm.constants {
+                println!("{}", c);
+            }
+            println!();
+
+            println!("[Machines]");
+            for (i, machine) in msn.fsm.stack_machine_definitions.iter().enumerate() {
+                println!("{} {} {:?}", i, machine.start_address, &machine.initial_arguments);
+            }
+            println!();
+
+            println!("[Bytecode]");
+            for (i, instruction) in msn.fsm.raw_instructions.iter().enumerate() {
+                let instruction_str = match instruction.opcode {
+                    FSMOpcode::Push => format!("push {}", instruction.value),
+                    FSMOpcode::ArgPushS => format!("push_s {}", instruction.value),
+                    FSMOpcode::ArgPushB => format!("push_b {}", instruction.value),
+                    FSMOpcode::Adjust => format!("adjust {}", instruction.value),
+                    FSMOpcode::Drop => format!("drop {}", instruction.value),
+                    FSMOpcode::Jmp => format!("jmp {}", instruction.value),
+                    FSMOpcode::Jz => format!("jz {}", instruction.value),
+                    FSMOpcode::JmpI => format!("jmp_i {}", instruction.value),
+                    FSMOpcode::Rst => format!("rst {}", instruction.value),
+                    FSMOpcode::Action => format!("action {}", &msn.fsm.action_table[instruction.value as usize]),
+                    FSMOpcode::Neg => format!("neg {}", instruction.value)
+                };
+                println!("{} {}", i, instruction_str);
+            }
+            println!();
         }
     }
 

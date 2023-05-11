@@ -1,3 +1,5 @@
+use std::{collections::VecDeque, io::Seek};
+
 use glam::Vec3;
 
 use super::{
@@ -12,6 +14,7 @@ pub struct MSN {
     pub odef_objs: Vec<ODEFObj>,
     pub ldef_objs: Vec<LDEFObj>,
     pub tdef: TDEF,
+    pub fsm: FSM,
 }
 
 impl Readable for MSN {
@@ -22,6 +25,7 @@ impl Readable for MSN {
         let mut odef_objs: Vec<ODEFObj> = vec![];
         let mut ldef_objs: Vec<LDEFObj> = vec![];
         let mut tdef: Option<TDEF> = None;
+        let mut fsm: Option<FSM> = None;
 
         while let Ok(tag) = reader.bwd2_tag() {
             match &tag.name[..] {
@@ -88,6 +92,18 @@ impl Readable for MSN {
                     }
                 }
                 "TDEF" => tdef = Some(TDEF::consume(reader)?),
+                "ADEF" => {
+                    while let Ok(tag) = reader.bwd2_tag() {
+                        match &tag.name[..] {
+                            "FSM" => {
+                                fsm = Some(FSM::consume(reader)?);
+                            }
+                            _ => {
+                                reader.seek_relative(tag.size as i64)?;
+                            }
+                        }
+                    }
+                }
                 _ => {
                     reader.seek_relative(tag.size as i64)?;
                 }
@@ -101,6 +117,7 @@ impl Readable for MSN {
             odef_objs,
             ldef_objs,
             tdef: tdef.expect("Expected TDEF"),
+            fsm: fsm.expect("Expected FSM"),
         })
     }
 }
@@ -299,7 +316,7 @@ impl Readable for LDEFObj {
     where
         Self: Sized,
     {
-        let label = reader.read_fixed(100)?;        
+        let label = reader.read_fixed(100)?;
         let num_strings = reader.read_u32()?;
         let string_positions = (0..num_strings)
             .map(|_| Vec3::consume(reader))
@@ -393,4 +410,182 @@ impl Readable for TDEF {
             zone: zone.expect("Expected ZONE"),
         })
     }
+}
+
+pub struct FSM {
+    pub action_table: Vec<String>,
+    pub entity_table: Vec<FSMEntity>,
+    pub sound_clip_table: Vec<String>,
+    pub paths: Vec<FSMPath>,
+    pub stack_machine_definitions: Vec<FSMStackMachineDefinition>,
+    pub raw_instructions: Vec<FSMRawInstruction>,
+    pub constants: Vec<i32>,
+}
+
+impl Readable for FSM {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
+    where
+        Self: Sized,
+    {
+        let action_table_size = reader.read_u32()? as usize;
+        let mut action_table = Vec::with_capacity(action_table_size);
+        for _ in 0..action_table_size {
+            action_table.push(reader.read_fixed(40)?);
+        }
+
+        let num_entities = reader.read_u32()? as usize;
+        let mut entity_table = Vec::with_capacity(num_entities);
+        for _ in 0..num_entities {
+            let label = reader.read_fixed(40)?;
+            let raw_label = reader.bytes(8)?;
+
+            let mut label_high: i32 = 0;
+            let mut label_builder = String::new();
+
+            for j in 0..8 {
+                let mut v = raw_label[j];
+                if v > 0x7f {
+                    label_high = (label_high << 1) | 0x01;
+                } else {
+                    label_high = (label_high << 1) & 0xfe;
+                }
+
+                v &= 0x7f;
+                if v != 0 {
+                    label_builder.push(v as char);
+                }
+            }
+
+            entity_table.push(FSMEntity {
+                label,
+                value: label_builder,
+                id: label_high,
+            });
+        }
+
+        let num_sound_clips = reader.read_u32()? as usize;
+        let mut sound_clip_table = Vec::with_capacity(num_sound_clips);
+        for _ in 0..num_sound_clips {
+            sound_clip_table.push(reader.read_fixed(40)?);
+        }
+
+        let num_paths = reader.read_u32()? as usize;
+        let mut paths = Vec::with_capacity(num_paths);
+        for _ in 0..num_paths {
+            let name = reader.read_fixed(40)?;
+            let num_nodes = reader.read_u32()? as usize;
+            let mut points = Vec::with_capacity(num_nodes);
+            for _ in 0..num_nodes {
+                points.push(Vec3::consume(reader)?);
+            }
+
+            paths.push(FSMPath { name, points });
+        }
+
+        let num_machines = reader.read_u32()? as usize;
+        let mut stack_machines = Vec::with_capacity(num_machines);
+        for _ in 0..num_machines {
+            let next = reader.reader.stream_position()? + 168;
+
+            let start_address = reader.read_u32()?;
+            let num_initial_arguments = reader.read_u32()? as usize;
+            let mut initial_arguments = Vec::with_capacity(num_initial_arguments);
+            for _ in 0..num_initial_arguments {
+                initial_arguments.push(reader.read_i32()?);
+            }
+
+            stack_machines.push(FSMStackMachineDefinition {
+                start_address,
+                initial_arguments,
+            });
+
+            reader.seek_from_start(next)?;
+        }
+
+        let num_constants = reader.read_u32()? as usize;
+        let mut constants = Vec::with_capacity(num_constants);
+        for _ in 0..num_constants {
+            constants.push(reader.read_i32()?);
+        }
+
+        let num_raw_instructions = reader.read_u32()? as usize;
+        let mut raw_instructions = Vec::with_capacity(num_raw_instructions);
+        for _ in 0..num_raw_instructions {
+            let opcode = reader.read_u32()?;
+            let value = reader.read_i32()?;
+            raw_instructions.push(FSMRawInstruction {
+                opcode: opcode
+                    .try_into()
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
+                value,
+            });
+        }
+
+        Ok(Self {
+            action_table,
+            entity_table,
+            paths,
+            raw_instructions,
+            sound_clip_table,
+            stack_machine_definitions: stack_machines,
+            constants,
+        })
+    }
+}
+
+pub struct FSMEntity {
+    pub label: String,
+    pub value: String,
+    pub id: i32,
+}
+
+pub struct FSMPath {
+    pub name: String,
+    pub points: Vec<Vec3>,
+}
+
+pub struct FSMStackMachineDefinition {
+    pub start_address: u32,
+    pub initial_arguments: Vec<i32>,
+}
+
+#[derive(Debug)]
+pub enum FSMOpcode {
+    Push,
+    ArgPushS,
+    ArgPushB,
+    Adjust, // Adjust by arg
+    Drop,   // Set stack pointer to SP-arg
+    Jmp,
+    Jz,
+    JmpI,
+    Rst,
+    Action,
+    Neg,
+}
+
+impl TryFrom<u32> for FSMOpcode {
+    type Error = String;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(Self::Push),
+            4 => Ok(Self::ArgPushS),
+            5 => Ok(Self::ArgPushB),
+            6 => Ok(Self::Adjust),
+            7 => Ok(Self::Drop),
+            8 => Ok(Self::Jmp),
+            9 => Ok(Self::Jz),
+            10 => Ok(Self::JmpI),
+            12 => Ok(Self::Rst),
+            13 => Ok(Self::Action),
+            14 => Ok(Self::Neg),
+            _ => Err(format!("Unknown FSM opcode {}", value)),
+        }
+    }
+}
+
+pub struct FSMRawInstruction {
+    pub opcode: FSMOpcode,
+    pub value: i32,
 }
