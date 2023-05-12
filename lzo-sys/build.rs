@@ -3,9 +3,9 @@ use std::path::PathBuf;
 
 fn main() {
     cc::Build::new()
-        .file("lzo_src/src/lzo1x_d1.c")
-        .file("lzo_src/src/lzo1y_d1.c")
-        .include("lzo_src/include")
+        .file("lzo-2.10/src/lzo1x_d1.c")
+        .file("lzo-2.10/src/lzo1y_d1.c")
+        .include("lzo-2.10/include")
         .compile("lzo");
 
     // Tell cargo to tell rustc to link the system bzip2
@@ -23,7 +23,7 @@ fn main() {
         // bindings for.
         .header("wrapper.h")
         .clang_args(&[
-            "-I./lzo_src/include"
+            "-I./lzo-2.10/include"
         ])
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
