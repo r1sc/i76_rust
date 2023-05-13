@@ -1,4 +1,8 @@
-use super::{act::ACT, binary_reader::{BinaryReader, Readable}, cbk::CBK};
+use super::{
+    act::ACT,
+    binary_reader::{BinaryReader, Readable},
+    cbk::CBK,
+};
 
 pub struct VQM {
     pub width: u32,
@@ -23,7 +27,7 @@ impl Readable for VQM {
 }
 
 impl VQM {
-    pub fn to_rgba_pixels(&self, cbk: &CBK, act: &ACT) -> Vec<u32> {
+    pub fn to_rgba_pixels(&self, cbk: &CBK, act: &ACT, upside_down: bool) -> Vec<u32> {
         let mut rgba_texture: Vec<u32> = vec![0; (self.width * self.height) as usize];
 
         let mut x = 0;
@@ -45,7 +49,12 @@ impl VQM {
                         break;
                     }
 
-                    let dest_index = (yys * self.width + xxs) as usize;
+                    let dest_index = if upside_down {
+                        ((self.height - 1 - yys) * self.width + xxs) as usize
+                    } else {
+                        (yys * self.width + xxs) as usize
+                    };
+                    
                     let lut_ref = if from_clut {
                         (block & 0xff) as u8
                     } else {
@@ -56,7 +65,10 @@ impl VQM {
                         rgba_texture[dest_index] = 0;
                     } else {
                         let rgb = act.entries[lut_ref as usize];
-                        rgba_texture[dest_index] = (255 << 24) | ((rgb.0 as u32) << 16) | ((rgb.1 as u32) << 8) | (rgb.2 as u32);
+                        rgba_texture[dest_index] = (255 << 24)
+                            | ((rgb.0 as u32) << 16)
+                            | ((rgb.1 as u32) << 8)
+                            | (rgb.2 as u32);
                     }
                 }
             }

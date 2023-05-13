@@ -124,7 +124,7 @@ fn main() -> Result<(), std::io::Error> {
 
                     match archive.load::<MAP>(&file) {
                         Ok(map) => {
-                            let pixels = map.to_rgba_pixels(act.as_ref().unwrap());
+                            let pixels = map.to_rgba_pixels(act.as_ref().unwrap(), true);
                             write_png(map.width, map.height, &pixels, &target_path)?;
                         }
                         Err(e) => println!("Failed to extract file {}, got error {}", file, e),
@@ -135,7 +135,7 @@ fn main() -> Result<(), std::io::Error> {
                     match archive.load::<VQM>(&file) {
                         Ok(vqm) => {
                             let cbk: CBK = archive.load(&vqm.cbk_filename.to_lowercase())?;
-                            let pixels = vqm.to_rgba_pixels(&cbk, act.as_ref().unwrap());
+                            let pixels = vqm.to_rgba_pixels(&cbk, act.as_ref().unwrap(), true);
                             write_png(vqm.width, vqm.height, &pixels, &target_path)?;
                         }
                         Err(e) => println!("Failed to extract file {}, got error {}", file, e),

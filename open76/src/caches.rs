@@ -63,7 +63,7 @@ pub fn build_texture_cache<'a>(
                 anyhow::Ok(load_gl_texture(
                     vqm.width,
                     vqm.height,
-                    &vqm.to_rgba_pixels(cbk, act),
+                    &vqm.to_rgba_pixels(cbk, act, false),
                 ))
             }
             (_, true) => {
@@ -73,7 +73,7 @@ pub fn build_texture_cache<'a>(
                 anyhow::Ok(load_gl_texture(
                     map.width,
                     map.height,
-                    &map.to_rgba_pixels(act),
+                    &map.to_rgba_pixels(act, false),
                 ))
             }
             (false, false) => bail!("Failed to load texture {}", lowercase_name),

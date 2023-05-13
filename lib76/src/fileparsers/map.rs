@@ -1,3 +1,5 @@
+use either::Either::{Left, Right};
+
 use super::{
     act::ACT,
     binary_reader::{BinaryReader, Readable},
@@ -23,13 +25,21 @@ impl Readable for MAP {
 }
 
 impl MAP {
-    pub fn to_rgba_pixels(&self, act: &ACT) -> Vec<u32> {
-        self.clut_refs
-            .iter()
-            .map(|clut_ref| {
+    pub fn to_rgba_pixels(&self, act: &ACT, upside_down: bool) -> Vec<u32> {
+        let rows = self.clut_refs.chunks(self.height as usize);
+
+        let iter = if upside_down {
+            Left(rows.rev())
+        } else {
+            Right(rows)
+        };
+
+        iter.flat_map(|row| {
+            row.iter().map(|clut_ref| {
                 let rgb = act.entries[*clut_ref as usize];
                 (255 << 24) | ((rgb.0 as u32) << 16) | ((rgb.1 as u32) << 8) | (rgb.2 as u32)
             })
-            .collect()
+        })
+        .collect()
     }
 }

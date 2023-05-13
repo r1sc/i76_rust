@@ -689,6 +689,7 @@ name = "lib76"
 version = "0.1.0"
 dependencies = [
  "byteorder",
+ "either",
  "glam",
  "lzo-sys",
 ]
