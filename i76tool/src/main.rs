@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufReader, BufWriter, LineWriter, Write},
+    io::{BufReader, BufWriter},
     path::Path,
 };
 
@@ -87,7 +87,7 @@ fn main() -> Result<(), std::io::Error> {
 
     match args.command {
         ZFSCommand::ListFiles { zfs_path } => {
-            let archive = zfs_archive::ZFSArchive::new(zfs_path)?;
+            let archive = zfs_archive::ZFSArchive::new(Path::new(&zfs_path))?;
 
             let mut file_list = archive.get_file_list();
             file_list.sort();
@@ -104,7 +104,7 @@ fn main() -> Result<(), std::io::Error> {
             target_folder,
             act_filename,
         } => {
-            let archive = zfs_archive::ZFSArchive::new(zfs_path)?;
+            let archive = zfs_archive::ZFSArchive::new(Path::new(&zfs_path))?;
             let glob = Glob::new(&pattern).unwrap();
 
             let act: Option<ACT> = act_filename

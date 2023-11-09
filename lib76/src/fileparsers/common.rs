@@ -25,6 +25,9 @@ impl ColorRGB {
 
 #[derive(Clone, Copy)]
 pub struct RotationAxis {
+    pub right: Vec3,
+    pub up: Vec3,
+    pub forward: Vec3,
     pub matrix: Mat4,
 }
 impl Readable for RotationAxis {
@@ -38,6 +41,6 @@ impl Readable for RotationAxis {
             (forward).extend(0.0),
             Vec4::new(0.0, 0.0, 0.0, 1.0),
         );
-        Ok(Self { matrix })
+        Ok(Self { right, up, forward, matrix })
     }
 }

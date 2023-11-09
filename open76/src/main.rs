@@ -6,21 +6,20 @@ mod render_graph;
 mod sky;
 //mod smacker_player;
 mod terrain;
-mod virtual_fs;
 
 use glam::{Vec3, Vec4};
 use glfw::{
     ffi::{glfwSetFramebufferSizeCallback, GLFWwindow},
     Action, Context,
 };
-use std::time::Instant;
+use std::{time::Instant, path::Path};
 
-use lib76::fileparsers::{act::ACT, msn::MSN, sdf::SDF, vcf::VCF, vdf::VDF};
+use lib76::{fileparsers::{act::ACT, msn::MSN, sdf::SDF, vcf::VCF, vdf::VDF}, virtual_fs::VirtualFS, zfs_archive::ZFSArchive};
 use lib76::fileparsers::{ter::TER, vtf::VTF};
 
 use crate::{render_graph::RenderMode, sky::Sky};
 
-fn load_vcf(vfs: &virtual_fs::VirtualFS, vcf_filename: &str) -> anyhow::Result<(VCF, VDF, VTF)> {
+fn load_vcf(vfs: &VirtualFS, vcf_filename: &str) -> anyhow::Result<(VCF, VDF, VTF)> {
     let vcf: VCF = vfs.load(vcf_filename)?;
     let vdf: VDF = vfs.load(&vcf.vcfc.vdf_filename)?;
     let vtf: VTF = vfs.load(&vcf.vcfc.vtf_filename)?;
@@ -31,7 +30,12 @@ fn main() -> anyhow::Result<()> {
     let mut camera = camera::Camera::new();
 
     println!("Loading data");
-    let vfs = virtual_fs::VirtualFS::new(r"C:\spel\Interstate 76".to_string())?;
+    let game_path = Path::new(r"C:\spel\Interstate 76");
+    // let vfs = virtual_fs::VirtualFS::new(r"C:\spel\Interstate 76".to_string())?;
+    let vfs = VirtualFS {
+        disk_folders: vec![game_path.join("addon"), game_path.join("miss16")],
+        zfs_archive: Some(ZFSArchive::new(&game_path.join("I76.ZFS"))?),
+    };
     // let mut files = vfs.get_file_list();
     // files.sort();
     // let _ = std::fs::write("filelist.txt", files.join("\n"));

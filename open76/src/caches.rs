@@ -1,16 +1,18 @@
 use std::ffi::c_void;
 
 use anyhow::bail;
-use lib76::fileparsers::{act::ACT, cbk::CBK, geo::Geo, map::MAP, tmt::TMT, vqm::VQM};
+use lib76::{
+    fileparsers::{act::ACT, cbk::CBK, geo::Geo, map::MAP, tmt::TMT, vqm::VQM},
+    virtual_fs::VirtualFS,
+};
 
 use crate::{
     cache::{self, FileCache},
     gl::{self, types::GLuint},
-    virtual_fs::VirtualFS,
 };
 
 pub fn build_cbk_cache(vfs: &VirtualFS) -> FileCache<CBK> {
-    cache::FileCache::new(|name| vfs.load(name))
+    cache::FileCache::new(|name| Ok(vfs.load(name)?))
 }
 
 fn load_gl_texture(width: u32, height: u32, rgba_texture: &[u32]) -> u32 {
@@ -51,44 +53,41 @@ pub fn build_texture_cache<'a>(
         } else {
             &lowercase_name
         };
+        
         let vqm_path = format!("{}.vqm", fixed_name);
         let map_path = format!("{}.map", fixed_name);
 
-        let tex = match (vfs.exists(&vqm_path), vfs.exists(&map_path)) {
-            (true, _) => {
-                let vqm: VQM = vfs
-                    .load(&vqm_path)
-                    .unwrap_or_else(|_| panic!("Failed to load {}", vqm_path));
-                let cbk = cbk_cache.get(&vqm.cbk_filename)?;
-                anyhow::Ok(load_gl_texture(
-                    vqm.width,
-                    vqm.height,
-                    &vqm.to_rgba_pixels(cbk, act, false),
-                ))
-            }
-            (_, true) => {
-                let map: MAP = vfs
-                    .load(&map_path)
-                    .unwrap_or_else(|_| panic!("Failed to load {}", map_path));
-                anyhow::Ok(load_gl_texture(
-                    map.width,
-                    map.height,
-                    &map.to_rgba_pixels(act, false),
-                ))
-            }
-            (false, false) => bail!("Failed to load texture {}", lowercase_name),
-        }?;
-
-        Ok(tex)
+        if vfs.exists(&vqm_path) {
+            let vqm: VQM = vfs
+                .load(&vqm_path)
+                .unwrap_or_else(|_| panic!("Failed to load {}", vqm_path));
+            let cbk = cbk_cache.get(&vqm.cbk_filename)?;
+            Ok(load_gl_texture(
+                vqm.width,
+                vqm.height,
+                &vqm.to_rgba_pixels(cbk, act, false),
+            ))
+        } else if vfs.exists(&map_path) {
+            let map: MAP = vfs
+                .load(&map_path)
+                .unwrap_or_else(|_| panic!("Failed to load {}", map_path));
+            Ok(load_gl_texture(
+                map.width,
+                map.height,
+                &map.to_rgba_pixels(act, false),
+            ))
+        } else {
+            bail!("Failed to load texture {}", lowercase_name)
+        }
     })
 }
 
 pub type GeoCache<'a> = FileCache<'a, Geo>;
 pub fn build_geo_cache(vfs: &VirtualFS) -> GeoCache {
-    cache::FileCache::new(|name| vfs.load(&format!("{}.geo", name)))
+    cache::FileCache::new(|name| Ok(vfs.load(&format!("{}.geo", name))?))
 }
 
 pub type TMTCache<'a> = FileCache<'a, TMT>;
 pub fn build_tmt_cache(vfs: &VirtualFS) -> TMTCache {
-    cache::FileCache::new(|name| vfs.load(name))
+    cache::FileCache::new(|name| Ok(vfs.load(name)?))
 }

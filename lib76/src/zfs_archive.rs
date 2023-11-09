@@ -1,7 +1,7 @@
 use std::{
     fs::File,
     io::{BufReader, Cursor},
-    ptr::null_mut,
+    ptr::null_mut, path::{Path, PathBuf},
 };
 
 use crate::fileparsers::{
@@ -12,18 +12,18 @@ use crate::fileparsers::{
 
 pub struct ZFSArchive {
     zfs: ZFS,
-    pub path: String,
+    pub path: PathBuf,
 }
 
 impl ZFSArchive {
-    pub fn new(path: String) -> Result<Self, std::io::Error> {
-        let f = File::open(&path)?;
+    pub fn new(path: &Path) -> Result<Self, std::io::Error> {
+        let f = File::open(path)?;
         let mut reader = BinaryReader {
             reader: BufReader::new(Box::new(f)),
         };
 
         let mut this = Self {
-            path,
+            path: path.to_path_buf(),
             zfs: ZFS::consume(&mut reader)?,
         };
 

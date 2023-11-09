@@ -1,12 +1,11 @@
 [package]
-name = "i76tool"
+name = "modelviewer"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.2.7", features = ["derive"] }
-lib76 = { path = "../lib76" }
-png = "0.17.8"
-wax = "0.6.0"
+kiss3d = "0.35.0"
+nalgebra = "0.32.2"
+lib76 = {path = "../lib76" }

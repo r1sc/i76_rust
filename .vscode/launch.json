@@ -5,12 +5,24 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(Windows) Launch",
+            "name": "(Windows) Debug Open76",
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/target/debug/open76.exe",
             // "program": "${workspaceFolder}/target/debug/i76tool.exe",
             // "args": ["c:\\spel\\interstate 76\\i76.zfs", "extract-all-textures", "e:\\i76_v2_extracted", "t01.act"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "preLaunchTask": "cargo build",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "(Windows) Debug Modelviewer",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/modelviewer.exe",
+            "args": ["E:\\i76_v2_extracted\\bfsince1.sdf"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
