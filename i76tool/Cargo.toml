@@ -8,5 +8,5 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.2.7", features = ["derive"] }
 lib76 = { path = "../lib76" }
-png = "0.17.8"
-wax = "0.6.0"
+png = "0.17"
+wax = "0.6"

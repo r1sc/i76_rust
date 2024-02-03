@@ -13,5 +13,5 @@ documentation = "https://docs.rs/libsmacker"
 
 [dependencies]
 libsmacker-sys = { path = "../libsmacker-sys", version = "0" }
-enum_primitive = "0.1.1"
+enum_primitive = "0.1"
 bitflags = "2.0"

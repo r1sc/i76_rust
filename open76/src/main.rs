@@ -85,7 +85,12 @@ fn main() -> anyhow::Result<()> {
         .unwrap_or(Vec3::ZERO);
 
     println!("Starting GLFW...");
-    let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
+
+    fn error_callback(err: glfw::Error, description: String) {
+        eprintln!("GLFW error {:?}: {:?}", err, description);
+    }
+
+    let mut glfw = glfw::init(error_callback).unwrap();
 
     let (mut window, _events) = glfw
         .create_window(800, 600, "Hello this is window", glfw::WindowMode::Windowed)

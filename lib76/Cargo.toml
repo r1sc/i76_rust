@@ -7,7 +7,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-byteorder = "1.4.3"
-either = "1.8.1"
-glam = "0.24"
+byteorder = "1.4"
+either = "1.8"
+glam = "0.25"
 lzo-sys = { path = "../lzo-sys" }
