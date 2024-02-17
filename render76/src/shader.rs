@@ -5,19 +5,14 @@ pub struct ShaderProgram {
 }
 
 impl ShaderProgram {
-    pub fn new(gl: &glow::Context, src: &str) -> Self {
-        let build_shader = move |kind: u32| -> glow::Shader {
-            let define_str = match kind {
-                glow::VERTEX_SHADER => "#define VS",
-                glow::FRAGMENT_SHADER => "#define FS",
-                _ => panic!("Expected vertex/fragment"),
-            };
+    pub fn load(gl: &glow::Context, vertex_src: &str, frag_src: &str) -> Self {
+        let build_shader = move |src: &str, kind: u32| -> glow::Shader {
             unsafe {
                 let shader = gl.create_shader(kind).unwrap();
-                gl.shader_source(shader, &format!("{}\n{}", define_str, src));
+                gl.shader_source(shader, src);
                 gl.compile_shader(shader);
                 if !gl.get_shader_compile_status(shader) {
-                    panic!("Shader compile error: {}", gl.get_shader_info_log(shader));
+                    panic!("{} shader compile error: {}", if kind == glow::VERTEX_SHADER { "Vertex" } else { "Fragment" }, gl.get_shader_info_log(shader));
                 }
                 shader
             }
@@ -25,8 +20,8 @@ impl ShaderProgram {
 
         unsafe {
             let program = gl.create_program().unwrap();
-            let vertex_shader = build_shader(glow::VERTEX_SHADER);
-            let fragment_shader = build_shader(glow::FRAGMENT_SHADER);
+            let vertex_shader = build_shader(vertex_src, glow::VERTEX_SHADER);
+            let fragment_shader = build_shader(frag_src, glow::FRAGMENT_SHADER);
             gl.attach_shader(program, vertex_shader);
             gl.attach_shader(program, fragment_shader);
             gl.link_program(program);
@@ -42,4 +37,8 @@ impl ShaderProgram {
 			gl.use_program(Some(self.program));
 		}
 	}
+
+    pub fn get_uniform_location(&self, gl: &glow::Context, name: &str) -> Option<glow::UniformLocation> {
+        unsafe { gl.get_uniform_location(self.program, name) }
+    }
 }

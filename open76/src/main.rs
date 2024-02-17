@@ -1,8 +1,8 @@
 mod cache;
 mod caches;
 mod camera;
+mod geo_renderer;
 mod gl;
-mod render_graph;
 mod sky;
 //mod smacker_player;
 mod terrain;
@@ -12,12 +12,16 @@ use glfw::{
     ffi::{glfwSetFramebufferSizeCallback, GLFWwindow},
     Action, Context,
 };
-use std::{time::Instant, path::Path};
+use std::{cell::RefCell, path::Path, rc::Rc, time::Instant};
 
-use lib76::{fileparsers::{act::ACT, msn::MSN, sdf::SDF, vcf::VCF, vdf::VDF}, virtual_fs::VirtualFS, zfs_archive::ZFSArchive};
 use lib76::fileparsers::{ter::TER, vtf::VTF};
+use lib76::{
+    fileparsers::{act::ACT, msn::MSN, sdf::SDF, vcf::VCF, vdf::VDF},
+    virtual_fs::VirtualFS,
+    zfs_archive::ZFSArchive,
+};
 
-use crate::{render_graph::RenderMode, sky::Sky};
+use crate::{geo_renderer::RenderMode, sky::Sky};
 
 fn load_vcf(vfs: &VirtualFS, vcf_filename: &str) -> anyhow::Result<(VCF, VDF, VTF)> {
     let vcf: VCF = vfs.load(vcf_filename)?;
@@ -44,7 +48,7 @@ fn main() -> anyhow::Result<()> {
     let act: ACT = vfs.load(&msn.wrld.act_filename)?;
     let ter: TER = vfs.load(&msn.tdef.zone.ter_filename)?;
 
-    let mut geo_cache = caches::build_geo_cache(&vfs);
+    let geo_cache = Rc::new(RefCell::new(caches::build_geo_cache(&vfs)));
     let mut cbk_cache = caches::build_cbk_cache(&vfs);
     let mut texture_cache = caches::build_texture_cache(&vfs, &mut cbk_cache, &act);
     let mut tmt_cache = caches::build_tmt_cache(&vfs);
@@ -60,7 +64,13 @@ fn main() -> anyhow::Result<()> {
                     &vdf.vdfc.name, &vcf.vcfc.variant_name
                 );
                 let vdf_graph =
-                    render_graph::from(vdf.vgeo.third_person_parts[0][0].iter(), &mut geo_cache)?;
+                    lib76::geo_graph::from(vdf.vgeo.third_person_parts[0][0].iter(), |name| {
+                        geo_cache
+                            .borrow_mut()
+                            .get(name)
+                            .expect("Failed to load")
+                            .clone()
+                    })?;
                 anyhow::Ok((vdf_graph, RenderMode::Vehicle(vtf), o))
             } else {
                 let sdf: SDF = vfs.load(&format!("{}.sdf", &o.label))?;
@@ -68,9 +78,15 @@ fn main() -> anyhow::Result<()> {
                     "Building render graph for {} ({})",
                     &sdf.sdfc.name, &o.label
                 );
-                let graph = render_graph::from(
+                let graph = lib76::geo_graph::from(
                     sdf.sgeo.lod_levels[0].lod_parts.iter().map(|a| &a.geo_part),
-                    &mut geo_cache,
+                    |name| {
+                        geo_cache
+                            .borrow_mut()
+                            .get(name)
+                            .expect("Failed to load")
+                            .clone()
+                    },
                 )?;
                 anyhow::Ok((graph, RenderMode::SGeo, o))
             }
@@ -177,15 +193,20 @@ fn main() -> anyhow::Result<()> {
             gl::LoadMatrixf(&camera.get_view().to_cols_array() as *const _);
             gl::Lightfv(gl::LIGHT0, gl::POSITION, light_pos);
 
-            terrain::render_terrain(
-                surface_texture,
-                &msn.tdef.zmap,
-                &ter,
-                camera.position.x,
-                camera.position.y,
-                camera.position.z,
-                100,
-            );
+            gl::Enable(gl::CULL_FACE);
+            gl::Enable(gl::ALPHA_TEST);
+            gl::Enable(gl::LIGHTING);
+            gl::Enable(gl::DEPTH_TEST);
+
+            // terrain::render_terrain(
+            //     surface_texture,
+            //     &msn.tdef.zmap,
+            //     &ter,
+            //     camera.position.x,
+            //     camera.position.y,
+            //     camera.position.z,
+            //     100,
+            // );
 
             for object in &objects {
                 gl::PushMatrix();
@@ -196,7 +217,7 @@ fn main() -> anyhow::Result<()> {
                 );
                 gl::MultMatrixf(object.2.rotation.matrix.to_cols_array().as_ptr());
 
-                render_graph::draw_graph(
+                geo_renderer::draw_graph(
                     &object.0,
                     &mut texture_cache,
                     &mut tmt_cache,

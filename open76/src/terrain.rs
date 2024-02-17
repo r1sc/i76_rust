@@ -90,11 +90,11 @@ pub fn render_terrain(
             let n = v1v2.cross(v1v3).normalize();
 
             unsafe {
-                gl::TexCoord2f(world_x / 128.0, world_z2 / 128.0);
+                gl::TexCoord2f(world_x / 16.0, world_z2 / 16.0);
                 gl::Normal3f(n.x, n.y, n.z);
                 gl::Vertex3f(world_x, p2, world_z2);
 
-                gl::TexCoord2f(world_x / 128.0, world_z1 / 128.0);
+                gl::TexCoord2f(world_x / 16.0, world_z1 / 16.0);
                 gl::Normal3f(n.x, n.y, n.z);
                 gl::Vertex3f(world_x, p1, world_z1);
             }

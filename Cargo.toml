@@ -9,4 +9,5 @@ members = [
     "lzo-sys",
     "i76tool",
     "modelviewer"
+    , "render76"
 ]

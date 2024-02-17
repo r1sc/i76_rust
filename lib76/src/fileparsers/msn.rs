@@ -442,8 +442,7 @@ impl Readable for FSM {
             let mut label_high: i32 = 0;
             let mut label_builder = String::new();
 
-            for j in 0..8 {
-                let mut v = raw_label[j];
+            for mut v in raw_label {
                 if v > 0x7f {
                     label_high = (label_high << 1) | 0x01;
                 } else {

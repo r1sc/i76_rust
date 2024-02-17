@@ -1,4 +1,4 @@
-use std::{collections::{HashMap}, rc::Rc};
+use std::{collections::HashMap, rc::Rc};
 
 type LoaderFn<'a, T> = dyn FnMut(&str) -> anyhow::Result<T> + 'a;
 

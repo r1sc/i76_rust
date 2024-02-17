@@ -4,6 +4,7 @@ use glam::Vec3;
 
 use crate::fileparsers::{bwd2::GEOPart, common::RotationAxis, geo::Geo};
 
+#[derive(Clone)]
 pub struct GeoNode {
     pub name: String,
     pub geo: Rc<Geo>,

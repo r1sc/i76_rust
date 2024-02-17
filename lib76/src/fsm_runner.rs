@@ -40,7 +40,7 @@ impl FSMRunner {
 
 struct FSMStackMachine {
     pub constants: Vec<i32>,
-    pub start_address: u32,
+    pub _start_address: u32,
     pub instruction_pointer: u32,
     pub stack: Vec<i32>,
     pub result_reg: i32,
@@ -55,7 +55,7 @@ impl FSMStackMachine {
             constants.push(fsm_constants[*arg as usize]);
         }
         Self {
-            start_address: definition.start_address,
+            _start_address: definition.start_address,
             constants,
             instruction_pointer: definition.start_address,
             stack: Vec::new(),
@@ -79,7 +79,7 @@ impl FSMStackMachine {
             }
             FSMOpcode::ArgPushB => {
                 let idx = ((self.constants.len() as i32) + (instruction.value + 1)) as usize;
-                let b_val = self.constants[idx as usize];
+                let b_val = self.constants[idx];
 
                 self.argument_queue.push_back(b_val);
             }

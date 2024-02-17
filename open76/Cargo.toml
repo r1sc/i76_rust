@@ -16,3 +16,4 @@ libsmacker = { path = "../libsmacker" }
 glam = "0.25"
 glow = "0.13"
 anyhow = "1.0"
+render76 = {path = "../render76" }
