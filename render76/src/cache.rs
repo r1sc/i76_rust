@@ -1,0 +1,27 @@
+use std::{collections::HashMap, rc::Rc};
+
+type LoaderFn<'a, T> = dyn FnMut(&str) -> anyhow::Result<T> + 'a;
+
+pub struct FileCache<'a, T> {
+    content: HashMap<String, Rc<T>>,
+    loader: Box<LoaderFn<'a, T>>,
+}
+
+impl<'a, T> FileCache<'a, T> {
+    pub fn new(loader: impl FnMut(&str) -> anyhow::Result<T> + 'a) -> Self {
+        FileCache {
+            content: HashMap::new(),
+            loader: Box::new(loader),
+        }
+    }
+
+    pub fn get(&mut self, name: &str) -> anyhow::Result<&Rc<T>> {
+        if self.content.contains_key(name) {
+            Ok(self.content.get(name).unwrap())
+        } else {
+            let a = (self.loader)(name)?;
+            self.content.insert(String::from(name), Rc::new(a));
+            Ok(self.content.get(name).unwrap())
+        }
+    }
+}

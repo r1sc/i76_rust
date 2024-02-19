@@ -9,3 +9,4 @@ edition = "2021"
 glam = "0.25"
 glow = "0.13"
 lib76 = { path = "../lib76" }
+anyhow = "1.0"

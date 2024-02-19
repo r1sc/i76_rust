@@ -14,8 +14,8 @@ use lib76::geo_graph::{self, GeoNode};
 use lib76::virtual_fs::VirtualFS;
 use lib76::zfs_archive::ZFSArchive;
 use render76::glam::{vec3, vec4};
-use render76::{glam, glow, SceneNode};
 use render76::glow::HasContext;
+use render76::{glam, glow, SceneNode};
 
 fn main() -> Result<(), std::io::Error> {
     let args: Vec<_> = std::env::args().collect();
@@ -65,9 +65,11 @@ fn main() -> Result<(), std::io::Error> {
         .to_str()
         .unwrap();
 
-    let mut sdf_node = if extension == "sdf" {
+    let use_face_normals = true;
+
+    let sdf_node = if extension == "sdf" {
         let sdf = vfs.load::<SDF>(model_filename).expect("Failed to load SDF");
-        render76::build_static_sdf(&gl, &vfs, &sdf).expect("Failed to build scene nodes")
+        render76::build_static_sdf(&gl, &vfs, &sdf, use_face_normals).expect("Failed to build scene nodes")
     } else {
         panic!("Unknown file type");
     };
@@ -81,16 +83,20 @@ layout(location = 3) in vec3 a_color;
 out vec2 v_uv;
 out vec3 v_normal;
 out vec3 v_color;
+out vec3 v_fragPosition;
 
 uniform mat4 u_model;
 uniform mat4 u_view;
 uniform mat4 u_projection;
 
 void main() {
-    mat4 model_view = u_view * u_model;
-    gl_Position = u_projection * model_view * vec4(a_position, 1.0);
+    gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0);
+
+    vec4 worldPos = u_model * vec4(a_position, 1.0);
+    v_fragPosition = worldPos.xyz / worldPos.w;
+
     v_uv = a_uv;
-    v_normal = mat3(model_view) * a_normal;
+    v_normal = normalize(mat3(u_model) * a_normal);
     v_color = a_color;
 }";
 
@@ -99,82 +105,109 @@ precision highp float;
 in vec2 v_uv;
 in vec3 v_normal;
 in vec3 v_color;
+in vec3 v_fragPosition;
 
-uniform vec3 u_light;
+uniform mat4 u_model;
 uniform vec3 u_ambient;
-uniform mat4 u_view;
+uniform sampler2D u_texture;
 
 out vec4 color;
 
+const vec3 lightColor = vec3(0.0, 0.5, 0.5);
+const vec3 lightDir = -normalize(vec3(0.0, 0.0, -1.0));
+const vec3 ambientColor = vec3(0.3, 0.3, 0.3);
+
 void main() {
-    vec3 normal = normalize(v_normal);
-    vec3 light_dir = normalize(u_light);
-    float diff = max(dot(normal, light_dir), 0.0);
-    vec3 diffuse = vec3(diff, diff, diff);
-    vec3 ambient = u_ambient;
-    color = vec4(diffuse + ambient, 1.0);
+    float brightness = clamp(dot(v_normal, lightDir), 0.3, 1.0);
+
+    vec3 diffuse = brightness * texture(u_texture, v_uv).xyz;
+    color = vec4(diffuse + ambientColor, 1.0);
+    // color = vec4(v_normal, 1.0);
 }";
 
     let shader_program = render76::shader::ShaderProgram::load(&gl, vertex_src, fragment_src);
     shader_program.use_program(&gl);
 
     unsafe {
-        gl.clear_color(0.0, 0.0, 0.0, 1.0);
+        gl.clear_color(0.39, 0.58, 0.93, 1.0);
         gl.enable(render76::glow::DEPTH_TEST);
         gl.disable(render76::glow::CULL_FACE);
     }
 
-    let compute_projection_matrix = |width, height| {
-        glam::Mat4::perspective_lh(45.0, width as f32 / height as f32, 0.1, 1000.0)
-    };
-    
+    let compute_projection_matrix =
+        |width, height| glam::Mat4::perspective_lh(45.0, width as f32 / height as f32, 0.1, 1000.0);
+
     let (width, height) = window.get_framebuffer_size();
     let mut projection_matrix = compute_projection_matrix(width, height);
-    let camera_position = glam::Vec3::new(0.0, 0.0, 50.0);
-    let mut view_matrix = glam::Mat4::from_translation(camera_position);
+    let camera_position = glam::Vec3::new(0.0, -2.0, 10.0);
+    let view_matrix = glam::Mat4::from_translation(camera_position);
 
-    let u_model = shader_program.get_uniform_location(&gl, "u_model").expect("Failed to get u_model");
-    let u_view = shader_program.get_uniform_location(&gl, "u_view").expect("Failed to get u_view");
-    let u_projection = shader_program.get_uniform_location(&gl, "u_projection").expect("Failed to get u_projection");
-    let u_light = shader_program.get_uniform_location(&gl, "u_light").expect("Failed to get u_light");
-    let u_ambient = shader_program.get_uniform_location(&gl, "u_ambient").expect("Failed to get u_ambient");
-
-    let light_dir = vec3(1.0, -1.0, 1.0);
+    let u_model = shader_program
+        .get_uniform_location(&gl, "u_model")
+        .expect("Failed to get u_model");
+    let u_view = shader_program
+        .get_uniform_location(&gl, "u_view")
+        .expect("Failed to get u_view");
+    let u_projection = shader_program
+        .get_uniform_location(&gl, "u_projection")
+        .expect("Failed to get u_projection");
+    // let u_lightdir = shader_program
+    //     .get_uniform_location(&gl, "u_lightdir")
+    //     .expect("Failed to get u_lightdir");
+    // let u_ambient = shader_program
+    //     .get_uniform_location(&gl, "u_ambient")
+    //     .expect("Failed to get u_ambient");
 
     unsafe {
         gl.uniform_matrix_4_f32_slice(Some(&u_projection), false, projection_matrix.as_ref());
 
-        gl.uniform_3_f32_slice(Some(&u_light), light_dir.as_ref());
-        gl.uniform_3_f32(Some(&u_ambient), 0.3, 0.3, 0.3);
+        // gl.uniform_3_f32(Some(&u_lightdir), 1.0, -1.0, 1.0);
+        // gl.uniform_3_f32(Some(&u_ambient), 0.5, 0.5, 0.5);
     }
+
+    let mut cbk_cache = render76::caches::build_cbk_cache(&vfs);
+    let mut texture_cache = render76::caches::build_texture_cache(&gl, &vfs, &mut cbk_cache, &act);
+    let mut model_matrix = glam::Mat4::IDENTITY;
 
     while !window.should_close() {
         glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
             match event {
-                glfw::WindowEvent::Key(glfw::Key::Escape, _, glfw::Action::Press, _) => window.set_should_close(true),
+                glfw::WindowEvent::Key(glfw::Key::Escape, _, glfw::Action::Press, _) => {
+                    window.set_should_close(true)
+                }
                 glfw::WindowEvent::FramebufferSize(width, height) => {
                     projection_matrix = compute_projection_matrix(width, height);
 
                     unsafe {
                         gl.viewport(0, 0, width, height);
-                        gl.uniform_matrix_4_f32_slice(Some(&u_projection), false, projection_matrix.as_ref());
+                        gl.uniform_matrix_4_f32_slice(
+                            Some(&u_projection),
+                            false,
+                            projection_matrix.as_ref(),
+                        );
                     }
                 }
                 _ => (),
             }
         }
 
-        view_matrix *= glam::Mat4::from_rotation_y(0.01);
+        // view_matrix *= glam::Mat4::from_rotation_y(0.01);
+        model_matrix *= glam::Mat4::from_rotation_y(0.01);
 
         unsafe {
             gl.clear(render76::glow::COLOR_BUFFER_BIT | render76::glow::DEPTH_BUFFER_BIT);
             gl.uniform_matrix_4_f32_slice(Some(&u_view), false, view_matrix.as_ref());
-            
         }
 
         for node in &sdf_node {
-            render_node(node, &gl, glam::Mat4::IDENTITY, &u_model);            
+            render_node(
+                node,
+                &gl,
+                model_matrix,
+                &u_model,
+                &mut texture_cache,
+            );
         }
 
         window.swap_buffers();
@@ -183,7 +216,16 @@ void main() {
     Ok(())
 }
 
-fn render_node(node: &SceneNode, gl: &glow::Context, mut model_matrix: glam::Mat4, loc: &glow::UniformLocation) {
+fn render_node(
+    node: &SceneNode,
+    gl: &glow::Context,
+    mut model_matrix: glam::Mat4,
+    loc: &glow::UniformLocation,
+    texture_cache: &mut render76::caches::TextureCache,
+) {
+    // model_matrix *= glam::Mat4::from_quat(node.local_rotation);
+    model_matrix *= glam::Mat4::from_translation(node.local_position);
+
     unsafe {
         gl.uniform_matrix_4_f32_slice(Some(loc), false, model_matrix.as_ref());
     }
@@ -192,6 +234,14 @@ fn render_node(node: &SceneNode, gl: &glow::Context, mut model_matrix: glam::Mat
         unsafe {
             gl.bind_vertex_array(Some(mesh.vao));
             for submesh in &mesh.submeshes {
+                if submesh.texture_name.is_empty() {
+                    gl.bind_texture(render76::glow::TEXTURE_2D, None);
+                } else {
+                    let texture = texture_cache
+                        .get(&submesh.texture_name)
+                        .expect("Failed to get texture");
+                    gl.bind_texture(render76::glow::TEXTURE_2D, Some(**texture));
+                }
                 gl.draw_elements(
                     render76::glow::TRIANGLES,
                     submesh.index_count as i32,
@@ -202,9 +252,7 @@ fn render_node(node: &SceneNode, gl: &glow::Context, mut model_matrix: glam::Mat
         }
     }
 
-    model_matrix *= glam::Mat4::from_translation(node.local_position);
-    model_matrix *= glam::Mat4::from_quat(node.local_rotation);
     for child in &node.children {
-        render_node(child, gl, model_matrix, loc);
+        render_node(child, gl, model_matrix, loc, texture_cache);
     }
 }

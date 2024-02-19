@@ -22,7 +22,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/target/debug/modelviewer.exe",
-            "args": ["c:\\spel\\i76", "aaramp1.sdf"],
+            "args": ["c:\\spel\\i76", "smcar_1.sdf"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

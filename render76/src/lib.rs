@@ -1,25 +1,20 @@
-use std::{
-    collections::{HashMap, HashSet},
-    hash::Hash,
-    rc::Rc,
-};
+use std::rc::Rc;
 
-pub use glow;
 pub use glam;
-use glam::{vec2, vec3, Quat, Vec2, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
-use glow::HasContext;
+use glam::{Quat, Vec3};
+pub use glow;
+
 use lib76::{
-    fileparsers::{
-        geo::{Geo, GeoFace, GeoVertexRef},
-        sdf::SDF,
-    },
+    fileparsers::{geo::Geo, sdf::SDF},
     geo_graph::{self, GeoNode},
     virtual_fs::VirtualFS,
 };
 
-pub mod shader;
-mod mesh;
+mod cache;
+pub mod caches;
 mod mem_utils;
+mod mesh;
+pub mod shader;
 
 pub struct SceneNode {
     pub name: String,
@@ -29,15 +24,13 @@ pub struct SceneNode {
     pub mesh: Option<mesh::Mesh>,
 }
 
-
-
-fn build_scene_nodes(gl: &glow::Context, graph: &[GeoNode]) -> Result<Vec<SceneNode>, String> {
+fn build_scene_nodes(gl: &glow::Context, graph: &[GeoNode], use_face_normals: bool) -> Result<Vec<SceneNode>, String> {
     let mut scene_nodes = Vec::new();
 
     for node in graph {
         let mut children = Vec::new();
         for child in &node.children {
-            for node in build_scene_nodes(gl, &[child.clone()])? {
+            for node in build_scene_nodes(gl, &[child.clone()], use_face_normals)? {
                 children.push(node);
             }
         }
@@ -47,9 +40,12 @@ fn build_scene_nodes(gl: &glow::Context, graph: &[GeoNode]) -> Result<Vec<SceneN
             children,
             local_position: node.local_position,
             local_rotation: Quat::from_mat4(&node.axis.matrix),
-            mesh: Some(mesh::mesh_from_submeshes(gl, mesh::submeshes_from_geo(&node.geo))?),
+            mesh: Some(mesh::Mesh::from_submeshes(
+                gl,
+                mesh::submeshes_from_geo(&node.geo, use_face_normals),
+            )?),
         };
-        scene_nodes.push(scene_node);        
+        scene_nodes.push(scene_node);
     }
 
     Ok(scene_nodes)
@@ -59,6 +55,7 @@ pub fn build_static_sdf(
     gl: &glow::Context,
     vfs: &VirtualFS,
     sdf: &SDF,
+    use_face_normals: bool
 ) -> Result<Vec<SceneNode>, String> {
     let load_geo = |name: &str| -> Rc<Geo> {
         let filename = format!("{}.geo", name);
@@ -71,6 +68,6 @@ pub fn build_static_sdf(
     )
     .expect("Failed to build graph");
 
-    let scene_nodes = build_scene_nodes(gl, &graph)?;
+    let scene_nodes = build_scene_nodes(gl, &graph, use_face_normals)?;
     Ok(scene_nodes)
 }
