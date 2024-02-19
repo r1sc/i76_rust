@@ -35,7 +35,7 @@ impl VirtualFS {
                 return Some(VirtualPath::ZFS);
             }
         }
-        
+
         None
     }
 

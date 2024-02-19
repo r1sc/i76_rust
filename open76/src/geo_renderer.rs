@@ -1,10 +1,9 @@
-
 use crate::{
     caches::{TMTCache, TextureCache},
     gl::{self},
 };
 use glam::Vec4Swizzles;
-use lib76::fileparsers::{self, vtf::VTF, geo::Geo};
+use lib76::fileparsers::{self, geo::Geo, vtf::VTF};
 use lib76::geo_graph::GeoNode;
 
 pub enum RenderMode {
@@ -33,7 +32,9 @@ fn draw_geo(
 
                             let filename = &vtf.vtfc.parts[vtf_part_no as usize][..];
                             if filename.ends_with(".TMT") || filename.ends_with(".tmt") {
-                                let tmt = tmt_cache.get(filename).unwrap_or_else(|_| panic!("Cannot find TMT: {}", filename));
+                                let tmt = tmt_cache
+                                    .get(filename)
+                                    .unwrap_or_else(|_| panic!("Cannot find TMT: {}", filename));
                                 &tmt.filenames[0][0][..]
                             } else {
                                 filename

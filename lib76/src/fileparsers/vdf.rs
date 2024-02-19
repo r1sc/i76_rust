@@ -1,11 +1,15 @@
 use glam::Vec3;
 
-use super::{binary_reader::{BinaryReader, Readable}, bwd2::GEOPart, common::RotationAxis};
+use super::{
+    binary_reader::{BinaryReader, Readable},
+    bwd2::GEOPart,
+    common::RotationAxis,
+};
 
 pub struct VDF {
     pub vdfc: VDFC,
     pub vlocs: Vec<VLOC>,
-    pub vgeo: VGEO
+    pub vgeo: VGEO,
 }
 impl Readable for VDF {
     fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
@@ -30,7 +34,7 @@ impl Readable for VDF {
         Ok(VDF {
             vdfc: vdfc.expect("Expected VDFC to be found in VDF"),
             vgeo: vgeo.expect("Expected VGEO to be found in VDF"),
-            vlocs
+            vlocs,
         })
     }
 }
@@ -83,15 +87,13 @@ impl Readable for VDFC {
     }
 }
 
-
 pub struct VLOC {
     pub index: u32,
     pub rotation: RotationAxis,
     pub position: Vec3,
 }
 impl Readable for VLOC {
-    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
-    {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let index = reader.read_u32()?;
         let rotation = RotationAxis::consume(reader)?;
         let position = Vec3::consume(reader)?;
@@ -111,18 +113,21 @@ pub struct VGEO {
     pub other_parts: Vec<Vec<Vec<GEOPart>>>,        // 2 lods * 4 damage states * num_parts
 }
 impl Readable for VGEO {
-    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
-    {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let num_parts = reader.read_u32()?;
 
         let mut read_parts = |num_lods| {
-            (0..num_lods).map(|_lod| {
-                (0..4).map(|_damage_state| {
-                    (0..num_parts)
-                        .map(|_part_no| GEOPart::consume(reader))
-                        .collect::<Result<Vec<GEOPart>, std::io::Error>>()
-                }).collect::<Result<Vec<Vec<GEOPart>>, std::io::Error>>()
-            }).collect::<Result<Vec<Vec<Vec<GEOPart>>>, std::io::Error>>()
+            (0..num_lods)
+                .map(|_lod| {
+                    (0..4)
+                        .map(|_damage_state| {
+                            (0..num_parts)
+                                .map(|_part_no| GEOPart::consume(reader))
+                                .collect::<Result<Vec<GEOPart>, std::io::Error>>()
+                        })
+                        .collect::<Result<Vec<Vec<GEOPart>>, std::io::Error>>()
+                })
+                .collect::<Result<Vec<Vec<Vec<GEOPart>>>, std::io::Error>>()
         };
 
         let third_person_parts = read_parts(4)?;
@@ -133,7 +138,7 @@ impl Readable for VGEO {
             num_parts,
             third_person_parts,
             first_person_parts,
-            other_parts
+            other_parts,
         })
     }
 }

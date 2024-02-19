@@ -45,17 +45,22 @@ impl Readable for VTFC {
     }
 }
 
-pub fn car_texture_name_to_vtf_loc(texture_name: &str) -> u32 {    
-    let upper = texture_name.to_uppercase().replace(".MAP", "").replace(".VQM", "");
+pub fn car_texture_name_to_vtf_loc(texture_name: &str) -> u32 {
+    let upper = texture_name
+        .to_uppercase()
+        .replace(".MAP", "")
+        .replace(".VQM", "");
     let mut splitted = upper.split_whitespace();
-    match (splitted.next(), splitted.next(), splitted.next()) {        
+    match (splitted.next(), splitted.next(), splitted.next()) {
         (Some("V1"), Some(md), Some(rt)) => {
             let major = match md {
                 "FT" => 0,
                 "MD" => 6,
                 "BK" => 12,
                 "TP" => 18,
-                _ => { panic!("Unknown major car texture part {}", md ); }
+                _ => {
+                    panic!("Unknown major car texture part {}", md);
+                }
             };
             let minor = match rt {
                 "FT" => 0,
@@ -64,12 +69,14 @@ pub fn car_texture_name_to_vtf_loc(texture_name: &str) -> u32 {
                 "LF" => 3,
                 "TP" => 4,
                 "UN" => 5,
-                _ => { panic!("Unknown minor car texture part {}", rt ); }
+                _ => {
+                    panic!("Unknown minor car texture part {}", rt);
+                }
             };
             major + minor
-        },
-        _ => { 
-            panic!("Unknown car texture part {}", texture_name); 
+        }
+        _ => {
+            panic!("Unknown car texture part {}", texture_name);
         }
     }
 }

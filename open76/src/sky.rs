@@ -1,15 +1,15 @@
-use crate::{gl::{self, types::GLuint}};
+use crate::gl::{self, types::GLuint};
 
 pub struct Sky {
-    drift: f32
+    drift: f32,
 }
 
 impl Sky {
     pub fn new() -> Self {
-        Self { drift: 0.0}
+        Self { drift: 0.0 }
     }
 
-    pub fn tick(&mut self, delta: f32) {        
+    pub fn tick(&mut self, delta: f32) {
         self.drift = (self.drift + 0.1 * delta) % 100.0;
     }
 

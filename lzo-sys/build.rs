@@ -22,9 +22,7 @@ fn main() {
         // The input header we would like to generate
         // bindings for.
         .header("wrapper.h")
-        .clang_args(&[
-            "-I./lzo-2.10/include"
-        ])
+        .clang_args(&["-I./lzo-2.10/include"])
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))

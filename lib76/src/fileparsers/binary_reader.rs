@@ -1,6 +1,4 @@
-use std::{
-    io::{BufReader, Read, Seek, SeekFrom, BufRead},
-};
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
@@ -99,7 +97,7 @@ impl BinaryReader {
 
     pub fn bwd2_tag(&mut self) -> Result<BWD2Tag, std::io::Error> {
         let name = self.read_fixed(4)?.to_uppercase();
-        let size = self.read_u32()? -8;
+        let size = self.read_u32()? - 8;
         Ok(BWD2Tag { name, size })
     }
 

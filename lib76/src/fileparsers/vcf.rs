@@ -6,27 +6,29 @@ pub struct VCF {
 }
 
 impl Readable for VCF {
-    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> where
-        Self: Sized {
-            let mut vcfc: Option<VCFC> = None;
-            let mut wepns: Vec<WEPN> = vec![];
-    
-            while let Ok(tag) = reader.bwd2_tag() {
-                match &tag.name[..] {
-                    "VCFC" => vcfc = Some(VCFC::consume(reader)?),
-                    "WEPN" => {
-                        wepns.push(WEPN::consume(reader)?);
-                    }
-                    _ => {
-                        reader.seek_relative(tag.size as i64)?;
-                    }
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
+    where
+        Self: Sized,
+    {
+        let mut vcfc: Option<VCFC> = None;
+        let mut wepns: Vec<WEPN> = vec![];
+
+        while let Ok(tag) = reader.bwd2_tag() {
+            match &tag.name[..] {
+                "VCFC" => vcfc = Some(VCFC::consume(reader)?),
+                "WEPN" => {
+                    wepns.push(WEPN::consume(reader)?);
+                }
+                _ => {
+                    reader.seek_relative(tag.size as i64)?;
                 }
             }
-    
-            Ok(Self {
-                vcfc: vcfc.expect("Expected VCFC"),
-                wepns,
-            })
+        }
+
+        Ok(Self {
+            vcfc: vcfc.expect("Expected VCFC"),
+            wepns,
+        })
     }
 }
 
@@ -38,8 +40,8 @@ pub struct VCFC {
     pub suspension_type: u32,
     pub brakes_type: u32,
     pub wdf_front_filename: String, // 13
-    pub wdf_mid_filename: String, // 13
-    pub wdf_back_filename: String, // 13
+    pub wdf_mid_filename: String,   // 13
+    pub wdf_back_filename: String,  // 13
     pub armor_front: u32,
     pub armor_left: u32,
     pub armor_right: u32,
@@ -51,8 +53,10 @@ pub struct VCFC {
     pub armor_or_chassis_left_to_add: u32,
 }
 impl Readable for VCFC {
-    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> where
-        Self: Sized {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
+    where
+        Self: Sized,
+    {
         let variant_name = reader.read_fixed(16)?;
         let vdf_filename = reader.read_fixed(13)?;
         let vtf_filename = reader.read_fixed(13)?;
@@ -89,7 +93,7 @@ impl Readable for VCFC {
             chassis_left,
             chassis_right,
             chassis_rear,
-            armor_or_chassis_left_to_add
+            armor_or_chassis_left_to_add,
         })
     }
 }
@@ -99,13 +103,15 @@ pub struct WEPN {
     pub gdf_filename: String, // 13
 }
 impl Readable for WEPN {
-    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> where
-        Self: Sized {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
+    where
+        Self: Sized,
+    {
         let mount_point = reader.read_u32()?;
         let gdf_filename = reader.read_fixed(13)?;
         Ok(Self {
             mount_point,
-            gdf_filename
+            gdf_filename,
         })
     }
 }

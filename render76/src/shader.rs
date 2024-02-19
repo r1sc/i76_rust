@@ -6,13 +6,21 @@ pub struct ShaderProgram {
 
 impl ShaderProgram {
     pub fn load(gl: &glow::Context, vertex_src: &str, frag_src: &str) -> Self {
-        let build_shader = move |src: &str, kind: u32| -> glow::Shader {
+        let build_shader = |src: &str, kind: u32| -> glow::Shader {
             unsafe {
                 let shader = gl.create_shader(kind).unwrap();
                 gl.shader_source(shader, src);
                 gl.compile_shader(shader);
                 if !gl.get_shader_compile_status(shader) {
-                    panic!("{} shader compile error: {}", if kind == glow::VERTEX_SHADER { "Vertex" } else { "Fragment" }, gl.get_shader_info_log(shader));
+                    panic!(
+                        "{} shader compile error: {}",
+                        if kind == glow::VERTEX_SHADER {
+                            "Vertex"
+                        } else {
+                            "Fragment"
+                        },
+                        gl.get_shader_info_log(shader)
+                    );
                 }
                 shader
             }
@@ -32,13 +40,17 @@ impl ShaderProgram {
         }
     }
 
-	pub fn use_program(&self, gl: &glow::Context) {
-		unsafe {
-			gl.use_program(Some(self.program));
-		}
-	}
+    pub fn use_program(&self, gl: &glow::Context) {
+        unsafe {
+            gl.use_program(Some(self.program));
+        }
+    }
 
-    pub fn get_uniform_location(&self, gl: &glow::Context, name: &str) -> Option<glow::UniformLocation> {
+    pub fn get_uniform_location(
+        &self,
+        gl: &glow::Context,
+        name: &str,
+    ) -> Option<glow::UniformLocation> {
         unsafe { gl.get_uniform_location(self.program, name) }
     }
 }

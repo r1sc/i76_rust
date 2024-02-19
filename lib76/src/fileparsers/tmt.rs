@@ -79,7 +79,7 @@ impl Readable for TMT {
             unk12,
             filenames,
             num_groups,
-            num_parts
+            num_parts,
         })
     }
 }

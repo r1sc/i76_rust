@@ -19,7 +19,11 @@ impl Readable for ColorRGB {
 }
 impl ColorRGB {
     pub fn to_vec3(&self) -> Vec3 {
-        Vec3::new((self.0 as f32) / 255.0, (self.1 as f32) / 255.0, (self.2 as f32) / 255.0)
+        Vec3::new(
+            (self.0 as f32) / 255.0,
+            (self.1 as f32) / 255.0,
+            (self.2 as f32) / 255.0,
+        )
     }
 }
 
@@ -41,6 +45,11 @@ impl Readable for RotationAxis {
             (forward).extend(0.0),
             Vec4::new(0.0, 0.0, 0.0, 1.0),
         );
-        Ok(Self { right, up, forward, matrix })
+        Ok(Self {
+            right,
+            up,
+            forward,
+            matrix,
+        })
     }
 }

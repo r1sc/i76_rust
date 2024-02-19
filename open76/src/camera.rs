@@ -35,7 +35,7 @@ impl Camera {
         let yaw_quat = Quat::from_axis_angle(Vec3::Y, self.yaw * DEG_TO_RAD);
         let pitch_quat = Quat::from_axis_angle(Vec3::X, self.pitch * DEG_TO_RAD);
         let rotation = (pitch_quat * yaw_quat).inverse();
-        
+
         let forward = rotation * Vec3::Z;
         let side = rotation * Vec3::X;
 

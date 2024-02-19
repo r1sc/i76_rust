@@ -11,7 +11,7 @@ use lib76::{
         binary_reader::{BinaryReader, Readable},
         cbk::CBK,
         map::MAP,
-        msn::{MSN, FSMOpcode},
+        msn::{FSMOpcode, MSN},
         vqm::VQM,
     },
     zfs_archive,
@@ -189,7 +189,10 @@ fn main() -> Result<(), std::io::Error> {
 
             println!("[Machines]");
             for (i, machine) in msn.fsm.stack_machine_definitions.iter().enumerate() {
-                println!("{} {} {:?}", i, machine.start_address, &machine.initial_arguments);
+                println!(
+                    "{} {} {:?}",
+                    i, machine.start_address, &machine.initial_arguments
+                );
             }
             println!();
 
@@ -205,8 +208,11 @@ fn main() -> Result<(), std::io::Error> {
                     FSMOpcode::Jz => format!("jz {}", instruction.value),
                     FSMOpcode::JmpI => format!("jmp_i {}", instruction.value),
                     FSMOpcode::Rst => format!("rst {}", instruction.value),
-                    FSMOpcode::Action => format!("action {}", &msn.fsm.action_table[instruction.value as usize]),
-                    FSMOpcode::Neg => format!("neg {}", instruction.value)
+                    FSMOpcode::Action => format!(
+                        "action {}",
+                        &msn.fsm.action_table[instruction.value as usize]
+                    ),
+                    FSMOpcode::Neg => format!("neg {}", instruction.value),
                 };
                 println!("{} {}", i, instruction_str);
             }

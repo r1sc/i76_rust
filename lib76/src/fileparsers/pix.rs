@@ -22,7 +22,7 @@ impl Readable for PIX {
             if line.is_empty() {
                 break;
             }
-            
+
             let mut splitted = line.split_ascii_whitespace();
             let filename = splitted.next().unwrap().to_lowercase();
             let offset: u32 = splitted.next().unwrap().parse().unwrap();

@@ -39,7 +39,7 @@ pub fn render_terrain(
 
                     let height = heightmap_point & 0xfff;
                     let height_unscaled = (height as f32) / 4096.0;
-                     // TODO: Investigate
+                    // TODO: Investigate
                     height_unscaled * 409.6
                 }
                 None => 0.0, // Block doesn't exist, return default height

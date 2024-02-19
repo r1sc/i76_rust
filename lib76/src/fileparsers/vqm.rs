@@ -54,7 +54,7 @@ impl VQM {
                     } else {
                         (yys * self.width + xxs) as usize
                     };
-                    
+
                     let lut_ref = if from_clut {
                         (block & 0xff) as u8
                     } else {

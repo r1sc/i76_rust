@@ -1,7 +1,8 @@
 use std::{
     fs::File,
     io::{BufReader, Cursor},
-    ptr::null_mut, path::{Path, PathBuf},
+    path::{Path, PathBuf},
+    ptr::null_mut,
 };
 
 use crate::fileparsers::{

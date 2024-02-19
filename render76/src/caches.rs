@@ -5,21 +5,47 @@ use lib76::{
     virtual_fs::VirtualFS,
 };
 
-use crate::{cache::{self, FileCache}, mem_utils};
+use crate::{
+    cache::{self, FileCache},
+    mem_utils,
+};
 
 pub fn build_cbk_cache(vfs: &VirtualFS) -> FileCache<CBK> {
     cache::FileCache::new(|name| Ok(vfs.load(name)?))
 }
 
-fn load_gl_texture(gl: &glow::Context, width: u32, height: u32, rgba_texture: &[u32]) -> glow::Texture {
+fn load_gl_texture(
+    gl: &glow::Context,
+    width: u32,
+    height: u32,
+    rgba_texture: &[u32],
+) -> glow::Texture {
     unsafe {
         let texture = gl.create_texture().expect("Failed to create texture");
         gl.bind_texture(glow::TEXTURE_2D, Some(texture));
-        gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MIN_FILTER, glow::LINEAR as i32);
-        gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MAG_FILTER, glow::LINEAR as i32);
+        gl.tex_parameter_i32(
+            glow::TEXTURE_2D,
+            glow::TEXTURE_MIN_FILTER,
+            glow::LINEAR as i32,
+        );
+        gl.tex_parameter_i32(
+            glow::TEXTURE_2D,
+            glow::TEXTURE_MAG_FILTER,
+            glow::LINEAR as i32,
+        );
         gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, glow::REPEAT as i32);
         gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_T, glow::REPEAT as i32);
-        gl.tex_image_2d(glow::TEXTURE_2D, 0, glow::RGBA as i32, width as i32, height as i32, 0, glow::RGBA, glow::UNSIGNED_BYTE, Some(mem_utils::slice_to_u8_slice(rgba_texture)));
+        gl.tex_image_2d(
+            glow::TEXTURE_2D,
+            0,
+            glow::RGBA as i32,
+            width as i32,
+            height as i32,
+            0,
+            glow::RGBA,
+            glow::UNSIGNED_BYTE,
+            Some(mem_utils::slice_to_u8_slice(rgba_texture)),
+        );
         texture
     }
 }

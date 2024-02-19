@@ -1,6 +1,9 @@
 use glam::Vec3;
 
-use super::{binary_reader::{BinaryReader, Readable}, common::RotationAxis};
+use super::{
+    binary_reader::{BinaryReader, Readable},
+    common::RotationAxis,
+};
 
 /*
 ********************************* Common Tags
@@ -18,8 +21,7 @@ pub struct GEOPart {
     pub u3: u32,
 }
 impl Readable for GEOPart {
-    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
-    {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let name = reader.read_fixed(8)?;
         let axis = RotationAxis::consume(reader)?;
         let position = Vec3::consume(reader)?;
@@ -57,8 +59,7 @@ pub struct SDFC {
     pub death_sound_name: String,
 }
 impl Readable for SDFC {
-    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
-    {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let name = reader.read_fixed(16)?;
         let unk = reader.read_u32()?;
         let lods = (0..5)
@@ -87,8 +88,7 @@ pub struct SGEOPart {
     pub u5: f32,
 }
 impl Readable for SGEOPart {
-    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
-    {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let geo_part = GEOPart::consume(reader)?;
         let u4 = reader.read_u32()?;
         let v_unk2 = Vec3::consume(reader)?;
@@ -108,8 +108,7 @@ pub struct LodLevel {
     pub destroyed_parts: Vec<SGEOPart>,
 }
 impl LodLevel {
-    fn consume(reader: &mut BinaryReader, num_parts: u32) -> Result<Self, std::io::Error>
-    {
+    fn consume(reader: &mut BinaryReader, num_parts: u32) -> Result<Self, std::io::Error> {
         let lod_parts = (0..num_parts)
             .map(|_| SGEOPart::consume(reader))
             .collect::<Result<_, _>>()?;
@@ -129,8 +128,7 @@ pub struct SGEO {
     pub lod_levels: Vec<LodLevel>,
 }
 impl Readable for SGEO {
-    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
-    {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let num_parts = reader.read_u32()?;
         let lods = (0..3)
             .map(|_| LodLevel::consume(reader, num_parts))
@@ -149,8 +147,7 @@ pub struct SCHK {
     pub parts: Vec<SGEOPart>,
 }
 impl Readable for SCHK {
-    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
-    {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let target_part = reader.read_fixed(8)?;
         let num_parts = reader.read_u32()?;
         let parts = (0..num_parts)
@@ -172,8 +169,7 @@ pub struct SOBJ {
     pub unk: Vec<u8>,
 }
 impl Readable for SOBJ {
-    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
-    {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let label = reader.read_fixed(8)?;
         let mat = (0..12)
             .map(|_| reader.read_f32())

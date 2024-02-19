@@ -6,8 +6,7 @@ pub struct CBK {
 }
 
 impl Readable for CBK {
-    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
-    {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let num_entries = reader.read_u32()?;
         let patterns = (0..num_entries)
             .map(|_| reader.bytes(16))

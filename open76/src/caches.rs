@@ -53,7 +53,7 @@ pub fn build_texture_cache<'a>(
         } else {
             &lowercase_name
         };
-        
+
         let vqm_path = format!("{}.vqm", fixed_name);
         let map_path = format!("{}.map", fixed_name);
 

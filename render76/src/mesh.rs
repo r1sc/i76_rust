@@ -60,7 +60,11 @@ pub fn submeshes_from_geo(geo: &Geo, use_face_normals: bool) -> VerticesIndicesS
     let triangulate_fan = |face: &GeoFace| -> Vec<VertexData> {
         let vref_to_vertex_data = |vref: &GeoVertexRef| -> VertexData {
             let vertex = geo.vertices[vref.vertex_index as usize];
-            let normal = if use_face_normals { face.normal.xyz() } else { geo.normals[vref.normal_index as usize] };
+            let normal = if use_face_normals {
+                face.normal.xyz()
+            } else {
+                geo.normals[vref.normal_index as usize]
+            };
             VertexData {
                 position: vertex,
                 uv: vec2(vref.uv.0, vref.uv.1),
@@ -127,7 +131,10 @@ pub fn submeshes_from_geo(geo: &Geo, use_face_normals: bool) -> VerticesIndicesS
 }
 
 impl Mesh {
-    pub fn from_submeshes(gl: &glow::Context, vis: VerticesIndicesSubmeshes) -> Result<Self, String> {
+    pub fn from_submeshes(
+        gl: &glow::Context,
+        vis: VerticesIndicesSubmeshes,
+    ) -> Result<Self, String> {
         let vao = unsafe { gl.create_vertex_array()? };
         let vertex_buffer = unsafe { gl.create_buffer()? };
         let index_buffer = unsafe { gl.create_buffer()? };
