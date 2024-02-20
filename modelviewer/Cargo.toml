@@ -10,3 +10,5 @@ render76 = {path = "../render76" }
 nalgebra = "0.32"
 lib76 = {path = "../lib76" }
 glfw = "0.54"
+egui_glow = "0.26.2"
+egui = "0.26.2"

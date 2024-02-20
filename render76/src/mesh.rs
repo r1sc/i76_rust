@@ -2,9 +2,16 @@ use std::collections::HashMap;
 
 use glam::{vec2, vec3, Vec2, Vec3, Vec4Swizzles};
 use glow::HasContext;
-use lib76::fileparsers::geo::{Geo, GeoFace, GeoVertexRef};
+use lib76::fileparsers::{
+    geo::{Geo, GeoFace, GeoVertexRef},
+    vtf::VTF,
+};
 
-use crate::mem_utils::slice_to_u8_slice;
+use crate::{
+    caches::{TMTCache, TextureCache},
+    mem_utils::slice_to_u8_slice,
+    RenderMode,
+};
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -56,7 +63,12 @@ pub struct VerticesIndicesSubmeshes {
     submeshes: Vec<Submesh>,
 }
 
-pub fn submeshes_from_geo(geo: &Geo, use_face_normals: bool) -> VerticesIndicesSubmeshes {
+pub fn submeshes_from_geo(
+    geo: &Geo,
+    use_face_normals: bool,
+    render_mode: &RenderMode,
+    tmt_cache: &mut TMTCache,
+) -> VerticesIndicesSubmeshes {
     let triangulate_fan = |face: &GeoFace| -> Vec<VertexData> {
         let vref_to_vertex_data = |vref: &GeoVertexRef| -> VertexData {
             let vertex = geo.vertices[vref.vertex_index as usize];
@@ -92,8 +104,32 @@ pub fn submeshes_from_geo(geo: &Geo, use_face_normals: bool) -> VerticesIndicesS
     let mut faces_by_texture_name: HashMap<String, Vec<&GeoFace>> = HashMap::new();
 
     for face in &geo.faces {
+        let texture_name = match &render_mode {
+            RenderMode::SGeo => &face.texture_name,
+            RenderMode::Vehicle(vtf) => {
+                if face.texture_name == "V1 BO DY.MAP" {
+                    ""
+                } else if face.texture_name.starts_with("V1") {
+                    let vtf_part_no =
+                        lib76::fileparsers::vtf::car_texture_name_to_vtf_loc(&face.texture_name);
+
+                    let filename = &vtf.vtfc.parts[vtf_part_no as usize][..];
+                    if filename.ends_with(".TMT") || filename.ends_with(".tmt") {
+                        let tmt = tmt_cache
+                            .get(filename)
+                            .unwrap_or_else(|_| panic!("Cannot find TMT: {}", filename));
+                        &tmt.filenames[0][0][..]
+                    } else {
+                        filename
+                    }
+                } else {
+                    &face.texture_name[..]
+                }
+            }
+        };
+
         let faces = faces_by_texture_name
-            .entry(face.texture_name.clone())
+            .entry(texture_name.to_string())
             .or_default();
         faces.push(face);
     }

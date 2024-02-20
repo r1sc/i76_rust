@@ -1,16 +1,17 @@
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use glam::{Quat, Vec3};
 use glow::HasContext;
 use lib76::{
-    fileparsers::{geo::Geo, sdf::SDF},
+    fileparsers::{geo::Geo, sdf::SDF, vcf::VCF, vdf::VDF, vtf::VTF},
     geo_graph::{self, GeoNode},
     virtual_fs::VirtualFS,
 };
 
 use crate::{
-    caches::TextureCache,
+    caches::{TMTCache, TextureCache},
     mesh::{self, Mesh},
+    RenderMode,
 };
 
 pub struct SceneNode {
@@ -27,6 +28,7 @@ impl SceneNode {
         vfs: &VirtualFS,
         sdf: &SDF,
         use_face_normals: bool,
+        tmt_cache: &mut TMTCache,
     ) -> Result<Vec<Self>, String> {
         let load_geo = |name: &str| -> Rc<Geo> {
             let filename = format!("{}.geo", name);
@@ -41,7 +43,50 @@ impl SceneNode {
 
         let mut root_nodes = Vec::new();
         for node in &graph {
-            root_nodes.push(Self::from_geonode(gl, node, use_face_normals)?);
+            root_nodes.push(Self::from_geonode(
+                gl,
+                node,
+                use_face_normals,
+                &RenderMode::SGeo,
+                tmt_cache
+            )?);
+        }
+        Ok(root_nodes)
+    }
+
+    pub fn from_vcf<'a>(
+        gl: &glow::Context,
+        vfs: &VirtualFS,
+        vcf: &VCF,
+        use_face_normals: bool,
+        tmt_cache: &mut TMTCache,
+    ) -> Result<Vec<Self>, String> {
+        let vdf: VDF = vfs
+            .load(&vcf.vcfc.vdf_filename)
+            .expect("Failed to load vdf");
+        let vtf: VTF = vfs
+            .load(&vcf.vcfc.vtf_filename)
+            .expect("Failed to load vtf");
+
+        let load_geo = |name: &str| -> Rc<Geo> {
+            let filename = format!("{}.geo", name);
+            Rc::new(vfs.load::<Geo>(&filename).expect("Failed to load geo"))
+        };
+
+        let graph = geo_graph::from(vdf.vgeo.third_person_parts[0][0].iter(), load_geo)
+            .expect("Failed to build graph");
+
+        let render_mode = RenderMode::Vehicle(vtf);
+
+        let mut root_nodes = Vec::new();
+        for node in &graph {
+            root_nodes.push(Self::from_geonode(
+                gl,
+                node,
+                use_face_normals,
+                &render_mode,
+                tmt_cache
+            )?);
         }
         Ok(root_nodes)
     }
@@ -50,10 +95,18 @@ impl SceneNode {
         gl: &glow::Context,
         node: &GeoNode,
         use_face_normals: bool,
+        render_mode: &RenderMode,
+        tmt_cache: &mut TMTCache,
     ) -> Result<Self, String> {
         let mut children = Vec::new();
         for child in &node.children {
-            children.push(Self::from_geonode(gl, child, use_face_normals)?);
+            children.push(Self::from_geonode(
+                gl,
+                child,
+                use_face_normals,
+                render_mode,
+                tmt_cache
+            )?);
         }
 
         Ok(Self {
@@ -63,7 +116,7 @@ impl SceneNode {
             local_rotation: Quat::from_mat4(&node.axis.matrix),
             mesh: Some(Mesh::from_submeshes(
                 gl,
-                mesh::submeshes_from_geo(&node.geo, use_face_normals),
+                mesh::submeshes_from_geo(&node.geo, use_face_normals, render_mode, tmt_cache),
             )?),
         })
     }
