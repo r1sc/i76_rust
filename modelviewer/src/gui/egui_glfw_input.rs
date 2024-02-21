@@ -1,5 +1,4 @@
 use egui::*;
-use render76::glow::{self, HasContext};
 
 pub struct EguiInputState {
     pub pointer_pos: Pos2,
@@ -200,29 +199,29 @@ pub fn translate_virtual_key_code(key: glfw::Key) -> Option<egui::Key> {
     })
 }
 
-pub fn translate_cursor(cursor_icon: egui::CursorIcon) -> glfw::StandardCursor {
-    match cursor_icon {
-        CursorIcon::Default => glfw::StandardCursor::Arrow,
+// pub fn translate_cursor(cursor_icon: egui::CursorIcon) -> glfw::StandardCursor {
+//     match cursor_icon {
+//         CursorIcon::Default => glfw::StandardCursor::Arrow,
 
-        CursorIcon::PointingHand => glfw::StandardCursor::Hand,
+//         CursorIcon::PointingHand => glfw::StandardCursor::Hand,
 
-        CursorIcon::ResizeHorizontal => glfw::StandardCursor::HResize,
-        CursorIcon::ResizeVertical => glfw::StandardCursor::VResize,
-        // TODO: GLFW doesnt have these specific resize cursors, so we'll just use the HResize and VResize ones instead
-        CursorIcon::ResizeNeSw => glfw::StandardCursor::HResize,
-        CursorIcon::ResizeNwSe => glfw::StandardCursor::VResize,
+//         CursorIcon::ResizeHorizontal => glfw::StandardCursor::HResize,
+//         CursorIcon::ResizeVertical => glfw::StandardCursor::VResize,
+//         // TODO: GLFW doesnt have these specific resize cursors, so we'll just use the HResize and VResize ones instead
+//         CursorIcon::ResizeNeSw => glfw::StandardCursor::HResize,
+//         CursorIcon::ResizeNwSe => glfw::StandardCursor::VResize,
 
-        CursorIcon::Text => glfw::StandardCursor::IBeam,
-        CursorIcon::Crosshair => glfw::StandardCursor::Crosshair,
+//         CursorIcon::Text => glfw::StandardCursor::IBeam,
+//         CursorIcon::Crosshair => glfw::StandardCursor::Crosshair,
 
-        CursorIcon::Grab | CursorIcon::Grabbing => glfw::StandardCursor::Hand,
+//         CursorIcon::Grab | CursorIcon::Grabbing => glfw::StandardCursor::Hand,
 
-        // TODO: Same for these
-        CursorIcon::NotAllowed | CursorIcon::NoDrop => glfw::StandardCursor::Arrow,
-        CursorIcon::Wait => glfw::StandardCursor::Arrow,
-        _ => glfw::StandardCursor::Arrow,
-    }
-}
+//         // TODO: Same for these
+//         CursorIcon::NotAllowed | CursorIcon::NoDrop => glfw::StandardCursor::Arrow,
+//         CursorIcon::Wait => glfw::StandardCursor::Arrow,
+//         _ => glfw::StandardCursor::Arrow,
+//     }
+// }
 
 // pub fn init_clipboard() -> Option<ClipboardContext> {
 //     match ClipboardContext::new() {

@@ -1,7 +1,7 @@
 use std::{
     fs::File,
     io::{BufReader, Cursor},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 use crate::{

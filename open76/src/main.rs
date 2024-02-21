@@ -198,15 +198,15 @@ fn main() -> anyhow::Result<()> {
             gl::Enable(gl::LIGHTING);
             gl::Enable(gl::DEPTH_TEST);
 
-            // terrain::render_terrain(
-            //     surface_texture,
-            //     &msn.tdef.zmap,
-            //     &ter,
-            //     camera.position.x,
-            //     camera.position.y,
-            //     camera.position.z,
-            //     100,
-            // );
+            terrain::render_terrain(
+                surface_texture,
+                &msn.tdef.zmap,
+                &ter,
+                camera.position.x,
+                camera.position.y,
+                camera.position.z,
+                100,
+            );
 
             for object in &objects {
                 gl::PushMatrix();

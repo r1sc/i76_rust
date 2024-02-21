@@ -1,6 +1,6 @@
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
-use glam::{vec3, Quat, Vec3};
+use glam::{Quat, Vec3};
 use glow::HasContext;
 use lib76::{
     fileparsers::{

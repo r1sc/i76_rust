@@ -265,7 +265,7 @@ pub struct WLOC {
 
 impl Readable for WLOC {
     fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
-        let unk1 = reader.read_u32()?;
+        let _unk1 = reader.read_u32()?;
         let rotation_axis = RotationAxis::consume(reader)?;
         let position = Vec3::consume(reader)?;
         let _unk = reader.read_f32()?;
