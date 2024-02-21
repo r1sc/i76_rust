@@ -6,10 +6,10 @@ use lib76::fileparsers::sdf::SDF;
 use lib76::fileparsers::vcf::VCF;
 use lib76::virtual_fs::VirtualFS;
 use lib76::zfs_archive::ZFSArchive;
-use render76::glow::HasContext;
 use render76::glam;
+use render76::glow::HasContext;
 
-mod egui_glfw_input;
+mod gui;
 
 fn main() -> Result<(), std::io::Error> {
     let args: Vec<_> = std::env::args().collect();
@@ -19,7 +19,10 @@ fn main() -> Result<(), std::io::Error> {
         return Ok(());
     }
 
-    // Init GL
+    // Init GLFW
+
+    let mut window_width: u32 = 800;
+    let mut window_height: u32 = 600;
 
     let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
     glfw.window_hint(glfw::WindowHint::ContextVersionMajor(3));
@@ -27,7 +30,12 @@ fn main() -> Result<(), std::io::Error> {
     glfw.window_hint(glfw::WindowHint::Samples(Some(16)));
 
     let (mut window, events) = glfw
-        .create_window(800, 600, "modelviewer", glfw::WindowMode::Windowed)
+        .create_window(
+            window_width,
+            window_height,
+            "modelviewer",
+            glfw::WindowMode::Windowed,
+        )
         .expect("Failed to create GLFW window.");
 
     window.set_key_polling(true);
@@ -36,6 +44,8 @@ fn main() -> Result<(), std::io::Error> {
     window.set_framebuffer_size_polling(true);
     window.make_current();
 
+    #[allow(clippy::arc_with_non_send_sync)]
+    // bc egui_glow requires an Arc.. why IDK it's single threaded..
     let gl = std::sync::Arc::new(unsafe {
         render76::glow::Context::from_loader_function(|s| window.get_proc_address(s))
     });
@@ -61,9 +71,9 @@ fn main() -> Result<(), std::io::Error> {
     let mut texture_cache = render76::caches::build_texture_cache(&gl, &vfs, &mut cbk_cache, &act);
     let mut tmt_cache = render76::caches::build_tmt_cache(&vfs);
 
-    let use_face_normals = true;
+    let use_face_normals = false;
 
-    let sdf_node = match extension {
+    let scene_node = match extension {
         "sdf" => {
             let sdf = vfs.load::<SDF>(model_filename).expect("Failed to load SDF");
             render76::SceneNode::from_sdf(&gl, &vfs, &sdf, use_face_normals, &mut tmt_cache)
@@ -89,8 +99,7 @@ fn main() -> Result<(), std::io::Error> {
     let compute_projection_matrix =
         |width, height| glam::Mat4::perspective_lh(45.0, width as f32 / height as f32, 0.1, 1000.0);
 
-    let (width, height) = window.get_framebuffer_size();
-    let mut projection_matrix = compute_projection_matrix(width, height);
+    let mut projection_matrix = compute_projection_matrix(window_width, window_height);
     let camera_position = glam::Vec3::new(0.0, -2.0, 10.0);
     let view_matrix = glam::Mat4::from_translation(camera_position);
 
@@ -108,44 +117,29 @@ fn main() -> Result<(), std::io::Error> {
         gl.uniform_matrix_4_f32_slice(Some(&u_projection), false, projection_matrix.as_ref());
     }
 
-    let mut model_matrix = glam::Mat4::IDENTITY;
+    let mut gui = gui::Gui::new(gl.clone(), window_width, window_height);
 
-    let mut painter =
-        egui_glow::Painter::new(gl.clone(), "", Some(egui_glow::ShaderVersion::Es300))
-            .expect("Failed to create egui_glow::Painter");
+    let mut auto_rotate = true;
+    let mut angle = 0.0;
 
-    let egui_ctx = egui::Context::default();
-    egui_ctx.set_pixels_per_point(1.0);
-
-    let mut input = egui_glfw_input::EguiInputState::new(egui::RawInput {
-        screen_rect: Some(egui::Rect::from_min_size(
-            egui::Pos2::ZERO,
-            egui::vec2(800 as f32, 600 as f32),
-        )),
-        ..egui::RawInput::default()
-    });
-
-    let mut window_width: u32 = 0;
-    let mut window_height: u32 = 0;
+    const DEG2RAD: f32 = std::f32::consts::PI / 180.0;
 
     while !window.should_close() {
         shader_program.use_program(&gl);
-        unsafe {
-            gl.clear_color(0.39, 0.58, 0.93, 1.0);
-            gl.enable(render76::glow::DEPTH_TEST);
-            gl.enable(render76::glow::CULL_FACE);
-        }
 
         glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
-            input.handle_event(event.clone(), &gl, &mut window_width, &mut window_height);
+            gui.handle_event(event.clone());
 
             match event {
                 glfw::WindowEvent::Key(glfw::Key::Escape, _, glfw::Action::Press, _) => {
                     window.set_should_close(true)
                 }
                 glfw::WindowEvent::FramebufferSize(width, height) => {
-                    projection_matrix = compute_projection_matrix(width, height);
+                    window_width = width as u32;
+                    window_height = height as u32;
+
+                    projection_matrix = compute_projection_matrix(window_width, window_height);
 
                     unsafe {
                         gl.viewport(0, 0, width, height);
@@ -160,46 +154,42 @@ fn main() -> Result<(), std::io::Error> {
             }
         }
 
-        // view_matrix *= glam::Mat4::from_rotation_y(0.01);
-        model_matrix *= glam::Mat4::from_rotation_y(0.01);
+        // Handle EGUI
+        gui.run(|ctx| {
+            egui::Window::new("Options")
+                .auto_sized()
+                .title_bar(false)
+                .show(ctx, |ui| {
+                    ui.label(&scene_node.name);
+                    ui.checkbox(&mut auto_rotate, "Auto-rotate model");
+                    ui.add_enabled(
+                        !auto_rotate,
+                        egui::Slider::new(&mut angle, 0.0..=360.0).text("Angle"),
+                    );
+                });
+        });
+
+        unsafe {
+            gl.clear_color(0.39, 0.58, 0.93, 1.0);
+            gl.enable(render76::glow::DEPTH_TEST);
+            gl.enable(render76::glow::CULL_FACE);
+        }
+
+        if auto_rotate {
+            angle += 0.5;
+            angle %= 360.0;
+        }
 
         unsafe {
             gl.clear(render76::glow::COLOR_BUFFER_BIT | render76::glow::DEPTH_BUFFER_BIT);
             gl.uniform_matrix_4_f32_slice(Some(&u_view), false, view_matrix.as_ref());
         }
 
-        for node in &sdf_node {
-            node.render(&gl, model_matrix, &u_model, &mut texture_cache);
-        }
+        let model_matrix = glam::Mat4::from_rotation_y(angle * DEG2RAD);
 
-        // EGUI
-        let full_output = egui_ctx.run(input.input.take(), |ctx| {
-            egui::Window::new("Hello").show(ctx, |ui| {
-                ui.heading("Hello World!");
-            });
-        });
+        scene_node.render(&gl, model_matrix, &u_model, &mut texture_cache);
 
-        for (id, image_delta) in full_output.textures_delta.set {
-            painter.set_texture(id, &image_delta);
-        }
-
-        let clipped_primitives =
-            egui_ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
-
-        let (width, height) = window.get_framebuffer_size();
-        painter.paint_primitives(
-            [width as u32, height as u32],
-            full_output.pixels_per_point,
-            &clipped_primitives,
-        );
-
-        for id in full_output.textures_delta.free {
-            painter.free_texture(id);
-        }
-
-        unsafe {
-            gl.finish();
-        }
+        gui.render(window_width, window_height);
 
         window.swap_buffers();
     }

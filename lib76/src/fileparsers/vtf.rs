@@ -26,7 +26,7 @@ impl Readable for VTF {
 }
 
 pub struct VTFC {
-    pub vdf_file: String,       // 13
+    pub vdf_filename: String,       // 13
     pub paint_job_name: String, // 16
     pub parts: Vec<String>,     // 13 * 29
 }
@@ -38,7 +38,7 @@ impl Readable for VTFC {
             .map(|_| reader.read_fixed(13))
             .collect::<Result<Vec<String>, std::io::Error>>()?;
         Ok(VTFC {
-            vdf_file,
+            vdf_filename: vdf_file,
             paint_job_name,
             parts,
         })

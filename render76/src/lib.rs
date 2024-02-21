@@ -14,7 +14,6 @@ mod mem_utils;
 mod mesh;
 mod scenenode;
 
-
 pub enum RenderMode {
     SGeo,
     Vehicle(VTF)

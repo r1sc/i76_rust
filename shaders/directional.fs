@@ -18,7 +18,7 @@ const vec3 ambientColor = vec3(0.3, 0.3, 0.3);
 void main() {
     float brightness = clamp(dot(v_normal, lightDir), 0.3, 1.0);
 
-    vec3 diffuse = brightness * texture(u_texture, v_uv).xyz;
+    vec3 diffuse = brightness * (v_color * texture(u_texture, v_uv).xyz);
     color = vec4(diffuse + ambientColor, 1.0);
     // color = vec4(v_normal, 1.0);
 }

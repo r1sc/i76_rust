@@ -18,14 +18,18 @@ impl EguiInputState {
 
     pub fn handle_event(
         &mut self,
-        event: glfw::WindowEvent,
-        gl: &glow::Context,
-        window_width: &mut u32,
-        window_height: &mut u32,
+        event: glfw::WindowEvent
     ) {
         use glfw::WindowEvent::*;
 
         match event {
+            FramebufferSize(width, height) => {
+                self.input.screen_rect = Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(width as f32, height as f32),
+                ));
+            }
+
             MouseButton(mouse_btn, glfw::Action::Press, _) => {
                 self.input.events.push(egui::Event::PointerButton {
                     pos: self.pointer_pos,

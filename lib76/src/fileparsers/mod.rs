@@ -16,3 +16,4 @@ pub mod vdf;
 pub mod vqm;
 pub mod vtf;
 pub mod zfs;
+pub mod wdf;

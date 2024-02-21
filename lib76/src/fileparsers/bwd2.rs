@@ -8,7 +8,7 @@ use super::{
 /*
 ********************************* Common Tags
 */
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct GEOPart {
     pub name: String,
     pub axis: RotationAxis,
@@ -80,7 +80,7 @@ impl Readable for SDFC {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct SGEOPart {
     pub geo_part: GEOPart,
     pub u4: u32,
@@ -103,6 +103,7 @@ impl Readable for SGEOPart {
     }
 }
 
+#[derive(Debug)]
 pub struct LodLevel {
     pub lod_parts: Vec<SGEOPart>,
     pub destroyed_parts: Vec<SGEOPart>,
@@ -137,6 +138,52 @@ impl Readable for SGEO {
         Ok(Self {
             num_parts,
             lod_levels: lods,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct WGEOLodLevel {
+    pub lod_parts: Vec<GEOPart>,
+    pub destroyed_parts: Vec<GEOPart>,
+}
+impl WGEOLodLevel {
+    fn consume(reader: &mut BinaryReader, num_parts: u32) -> Result<Self, std::io::Error> {
+        let lod_parts = (0..num_parts)
+            .map(|_| GEOPart::consume(reader))
+            .collect::<Result<_, _>>()?;
+        let destroyed_parts = (0..num_parts)
+            .map(|_| GEOPart::consume(reader))
+            .collect::<Result<_, _>>()?;
+
+        Ok(Self {
+            lod_parts,
+            destroyed_parts,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct WGEO {
+    pub num_parts: u32,
+    pub left: Vec<WGEOLodLevel>,
+    pub right: Vec<WGEOLodLevel>,
+}
+impl Readable for WGEO {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
+        let num_parts = reader.read_u32()?;
+        let right = (0..4)
+            .map(|_| WGEOLodLevel::consume(reader, num_parts))
+            .collect::<Result<_, _>>()?;
+
+        let left = (0..4)
+            .map(|_| WGEOLodLevel::consume(reader, num_parts))
+            .collect::<Result<_, _>>()?;
+
+        Ok(Self {
+            num_parts,
+            left,
+            right,
         })
     }
 }
@@ -182,6 +229,50 @@ impl Readable for SOBJ {
             mat,
             position_root,
             unk,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct WDFC {
+    pub name: String,
+    pub datas: Vec<f32>,
+    pub something: String,
+}
+
+impl Readable for WDFC {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
+        let name = reader.read_fixed(20)?;
+        let datas = (0..8)
+            .map(|_| reader.read_f32())
+            .collect::<Result<_, _>>()?;
+        let something = reader.read_fixed(14)?;
+
+        Ok(Self {
+            name,
+            datas,
+            something,
+        })
+    }
+}
+
+
+#[derive(Debug)]
+pub struct WLOC {
+    pub rotation_axis: RotationAxis,
+    pub position: Vec3,
+}
+
+impl Readable for WLOC {
+    fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
+        let unk1 = reader.read_u32()?;
+        let rotation_axis = RotationAxis::consume(reader)?;
+        let position = Vec3::consume(reader)?;
+        let _unk = reader.read_f32()?;
+
+        Ok(Self {
+            rotation_axis,
+            position,
         })
     }
 }

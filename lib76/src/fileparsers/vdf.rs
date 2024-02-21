@@ -2,14 +2,15 @@ use glam::Vec3;
 
 use super::{
     binary_reader::{BinaryReader, Readable},
-    bwd2::GEOPart,
+    bwd2::{GEOPart, WLOC},
     common::RotationAxis,
 };
 
 pub struct VDF {
     pub vdfc: VDFC,
-    pub vlocs: Vec<VLOC>,
     pub vgeo: VGEO,
+    pub vlocs: Vec<VLOC>,
+    pub wlocs: Vec<WLOC>
 }
 impl Readable for VDF {
     fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error>
@@ -17,14 +18,16 @@ impl Readable for VDF {
         Self: Sized,
     {
         let mut vdfc: Option<VDFC> = None;
-        let mut vlocs: Vec<VLOC> = Vec::new();
         let mut vgeo: Option<VGEO> = None;
+        let mut vlocs = Vec::new();
+        let mut wlocs = Vec::new();
 
         while let Ok(tag) = reader.bwd2_tag() {
             match &tag.name[..] {
                 "VDFC" => vdfc = Some(VDFC::consume(reader)?),
                 "VLOC" => vlocs.push(VLOC::consume(reader)?),
                 "VGEO" => vgeo = Some(VGEO::consume(reader)?),
+                "WLOC" => wlocs = (0..6).map(|_| { WLOC::consume(reader) }).collect::<Result<_, _>>()?,
                 _ => {
                     reader.seek_relative(tag.size as i64)?;
                 }
@@ -35,6 +38,7 @@ impl Readable for VDF {
             vdfc: vdfc.expect("Expected VDFC to be found in VDF"),
             vgeo: vgeo.expect("Expected VGEO to be found in VDF"),
             vlocs,
+            wlocs
         })
     }
 }

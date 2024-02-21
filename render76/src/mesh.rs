@@ -1,17 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use glam::{vec2, vec3, Vec2, Vec3, Vec4Swizzles};
 use glow::HasContext;
-use lib76::fileparsers::{
-    geo::{Geo, GeoFace, GeoVertexRef},
-    vtf::VTF,
-};
+use lib76::fileparsers::geo::{Geo, GeoFace, GeoVertexRef};
 
-use crate::{
-    caches::{TMTCache, TextureCache},
-    mem_utils::slice_to_u8_slice,
-    RenderMode,
-};
+use crate::{caches::TMTCache, mem_utils::slice_to_u8_slice, RenderMode};
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -67,25 +60,32 @@ pub fn submeshes_from_geo(
     geo: &Geo,
     use_face_normals: bool,
     render_mode: &RenderMode,
-    tmt_cache: &mut TMTCache,
+    tmt_cache: &mut TMTCache
 ) -> VerticesIndicesSubmeshes {
     let triangulate_fan = |face: &GeoFace| -> Vec<VertexData> {
-        let vref_to_vertex_data = |vref: &GeoVertexRef| -> VertexData {
+        let mut current_color = vec3(1.0, 1.0, 1.0);
+
+        let mut vref_to_vertex_data = |vref: &GeoVertexRef| -> VertexData {
             let vertex = geo.vertices[vref.vertex_index as usize];
             let normal = if use_face_normals {
                 face.normal.xyz()
             } else {
                 geo.normals[vref.normal_index as usize]
             };
+
+            if face.color.0 != 0 && face.color.1 != 0 && face.color.2 != 0 {
+                current_color = vec3(
+                    face.color.0 as f32 / 255.0,
+                    face.color.1 as f32 / 255.0,
+                    face.color.2 as f32 / 255.0,
+                );
+            }
+
             VertexData {
                 position: vertex,
                 uv: vec2(vref.uv.0, vref.uv.1),
                 normal: vec3(normal.x, -normal.y, normal.z),
-                color: vec3(
-                    face.color.0 as f32 / 255.0,
-                    face.color.1 as f32 / 255.0,
-                    face.color.2 as f32 / 255.0,
-                ),
+                color: current_color,
             }
         };
 
@@ -104,29 +104,41 @@ pub fn submeshes_from_geo(
     let mut faces_by_texture_name: HashMap<String, Vec<&GeoFace>> = HashMap::new();
 
     for face in &geo.faces {
-        let texture_name = match &render_mode {
-            RenderMode::SGeo => &face.texture_name,
-            RenderMode::Vehicle(vtf) => {
-                if face.texture_name == "V1 BO DY.MAP" {
-                    ""
-                } else if face.texture_name.starts_with("V1") {
-                    let vtf_part_no =
-                        lib76::fileparsers::vtf::car_texture_name_to_vtf_loc(&face.texture_name);
+        // remove any extension from face.texture_name
+        let stripped_texture_name = Path::new(&face.texture_name)
+            .file_stem()
+            .unwrap_or_default()
+            .to_str()
+            .unwrap();
 
-                    let filename = &vtf.vtfc.parts[vtf_part_no as usize][..];
-                    if filename.ends_with(".TMT") || filename.ends_with(".tmt") {
-                        let tmt = tmt_cache
-                            .get(filename)
-                            .unwrap_or_else(|_| panic!("Cannot find TMT: {}", filename));
-                        &tmt.filenames[0][0][..]
-                    } else {
-                        filename
-                    }
+        let texture_name = match render_mode {
+            RenderMode::SGeo => stripped_texture_name,
+            RenderMode::Vehicle(vtf) => {
+                if stripped_texture_name == "V1 BO DY" {
+                    ""
+                } else if stripped_texture_name.starts_with("V1") {
+                    let vtf_part_no =
+                        lib76::fileparsers::vtf::car_texture_name_to_vtf_loc(stripped_texture_name);
+
+                    &vtf.vtfc.parts[vtf_part_no as usize][..]                    
                 } else {
-                    &face.texture_name[..]
+                    stripped_texture_name
                 }
             }
         };
+
+        let texture_name = if texture_name.ends_with(".TMT") || texture_name.ends_with(".tmt") {
+            let tmt = tmt_cache
+                .get(texture_name)
+                .unwrap_or_else(|_| panic!("Cannot find TMT: {}", texture_name));
+            &tmt.filenames[0][0][..]
+        } else {
+            texture_name
+        };
+
+        if texture_name.ends_with("TMT") {
+            panic!("What");
+        }
 
         let faces = faces_by_texture_name
             .entry(texture_name.to_string())

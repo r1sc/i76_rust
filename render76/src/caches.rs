@@ -42,7 +42,7 @@ fn load_gl_texture(
             width as i32,
             height as i32,
             0,
-            glow::RGBA,
+            glow::BGRA,
             glow::UNSIGNED_BYTE,
             Some(mem_utils::slice_to_u8_slice(rgba_texture)),
         );

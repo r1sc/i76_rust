@@ -1,5 +1,8 @@
 {
     "files.associations": {
         "*.hsl": "c"
-    }
+    },
+    "rust-analyzer.linkedProjects": [
+        ".\\modelviewer\\Cargo.toml"
+    ]
 }

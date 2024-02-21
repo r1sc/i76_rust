@@ -27,7 +27,7 @@ impl ColorRGB {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct RotationAxis {
     pub right: Vec3,
     pub up: Vec3,

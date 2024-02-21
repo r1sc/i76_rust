@@ -22,7 +22,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/target/debug/modelviewer.exe",
-            "args": ["c:\\spel\\Interstate 76", "vppirna1.vcf"],
+            "args": ["c:\\spel\\Interstate 76", "vhelif.vcf"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

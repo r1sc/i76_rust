@@ -13,6 +13,20 @@ pub struct GeoNode {
     pub children: Vec<GeoNode>,
 }
 
+impl GeoNode {
+    pub fn from_geopart(part: &GEOPart, geo_loader: impl Fn(&str) -> Rc<Geo>) -> Self {
+        let geo = geo_loader(&part.name);
+
+        Self {
+            geo: geo.clone(),
+            name: part.name.clone(),
+            local_position: part.position,
+            axis: part.axis,
+            children: vec![],
+        }
+    }
+}
+
 pub fn from<'a, F>(
     parts: impl Iterator<Item = &'a GEOPart>,
     geo_loader: F,
