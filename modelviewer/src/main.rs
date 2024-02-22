@@ -6,7 +6,7 @@ use lib76::fileparsers::sdf::SDF;
 use lib76::fileparsers::vcf::VCF;
 use lib76::virtual_fs::VirtualFS;
 use lib76::zfs_archive::ZFSArchive;
-use render76::glam;
+use render76::{glam, SceneNodeLoaderParams};
 use render76::glow::HasContext;
 
 mod gui;
@@ -73,15 +73,22 @@ fn main() -> Result<(), std::io::Error> {
 
     let use_face_normals = false;
 
+    let mut loader_params = SceneNodeLoaderParams {
+        gl: &gl,
+        vfs: &vfs,
+        use_face_normals,
+        tmt_cache: &mut tmt_cache,
+    };
+
     let scene_node = match extension {
         "sdf" => {
             let sdf = vfs.load::<SDF>(model_filename).expect("Failed to load SDF");
-            render76::SceneNode::from_sdf(&gl, &vfs, &sdf, use_face_normals, &mut tmt_cache)
+            render76::SceneNode::from_sdf(&mut loader_params, &sdf)
                 .expect("Failed to build scene nodes")
         }
         "vcf" => {
             let vcf: VCF = vfs.load(model_filename)?;
-            render76::SceneNode::from_vcf(&gl, &vfs, &vcf, use_face_normals, &mut tmt_cache)
+            render76::SceneNode::from_vcf(&mut loader_params, &vcf)
                 .expect("Failed to build scene nodes")
         }
         _ => {

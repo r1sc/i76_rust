@@ -30,6 +30,13 @@ pub struct SceneNode {
     pub mesh: Option<Mesh>,
 }
 
+pub struct SceneNodeLoaderParams<'a, 'b> {
+    pub gl: &'a glow::Context,
+    pub vfs: &'a VirtualFS,
+    pub use_face_normals: bool,
+    pub tmt_cache: &'a mut TMTCache<'b>,
+}
+
 impl SceneNode {
     pub fn new_empty(name: String) -> Self {
         Self {
@@ -42,15 +49,17 @@ impl SceneNode {
     }
 
     pub fn from_sdf(
-        gl: &glow::Context,
-        vfs: &VirtualFS,
+        loader_params: &mut SceneNodeLoaderParams<'_, '_>,
         sdf: &SDF,
-        use_face_normals: bool,
-        tmt_cache: &mut TMTCache,
     ) -> Result<Self, String> {
         let load_geo = |name: &str| -> Rc<Geo> {
             let filename = format!("{}.geo", name);
-            Rc::new(vfs.load::<Geo>(&filename).expect("Failed to load geo"))
+            Rc::new(
+                loader_params
+                    .vfs
+                    .load::<Geo>(&filename)
+                    .expect("Failed to load geo"),
+            )
         };
 
         let graph = geo_graph::from(
@@ -61,37 +70,62 @@ impl SceneNode {
 
         let mut root_node = Self::new_empty(sdf.sdfc.name.clone());
         for node in &graph {
-            root_node.children.push(Self::from_geonode(
-                gl,
-                node,
-                use_face_normals,
-                &RenderMode::SGeo,
-                tmt_cache,
-            )?);
+            root_node
+                .children
+                .push(Self::from_geonode(loader_params, node, &RenderMode::SGeo)?);
         }
         Ok(root_node)
     }
 
-    pub fn from_vcf(
-        gl: &glow::Context,
-        vfs: &VirtualFS,
-        vcf: &VCF,
-        use_face_normals: bool,
-        tmt_cache: &mut TMTCache<'_>,
+    pub fn from_wdf(
+        loader_params: &mut SceneNodeLoaderParams<'_, '_>,
+        wgeo_lodlevel: &WGEOLodLevel,
+        wloc: &WLOC,
     ) -> Result<Self, String> {
-        
-        let vtf: VTF = vfs
+        let load_geo = |name: &str| -> Rc<Geo> {
+            let filename = format!("{}.geo", name);
+            Rc::new(
+                loader_params
+                    .vfs
+                    .load::<Geo>(&filename)
+                    .expect("Failed to load geo"),
+            )
+        };
+
+        let wheel_geonode = geo_graph::GeoNode::from_geopart(&wgeo_lodlevel.lod_parts[0], load_geo);
+        let wheel_scene_node =
+            Self::from_geonode(loader_params, &wheel_geonode, &RenderMode::SGeo)?;
+
+        let mut wloc_scene_node = SceneNode::new_empty("Wheel".to_string());
+        wloc_scene_node.local_position = wloc.position;
+        wloc_scene_node.local_rotation = Quat::from_mat4(&wloc.rotation_axis.matrix);
+        wloc_scene_node.children.push(wheel_scene_node);
+
+        Ok(wloc_scene_node)
+    }
+
+    pub fn from_vcf(
+        loader_params: &mut SceneNodeLoaderParams<'_, '_>,
+        vcf: &VCF,
+    ) -> Result<Self, String> {
+        let vtf: VTF = loader_params
+            .vfs
             .load(&vcf.vcfc.vtf_filename)
             .expect("Failed to load vtf");
 
-        let vdf: VDF = vfs
+        let vdf: VDF = loader_params
+            .vfs
             .load(&vtf.vtfc.vdf_filename)
             .expect("Failed to load vdf");
 
-
         let load_geo = |name: &str| -> Rc<Geo> {
             let filename = format!("{}.geo", name);
-            Rc::new(vfs.load::<Geo>(&filename).expect("Failed to load geo"))
+            Rc::new(
+                loader_params
+                    .vfs
+                    .load::<Geo>(&filename)
+                    .expect("Failed to load geo"),
+            )
         };
 
         let graph = geo_graph::from(vdf.vgeo.third_person_parts[0][0].iter(), load_geo)
@@ -103,80 +137,58 @@ impl SceneNode {
             Self::new_empty(format!("{} - {}", &vdf.vdfc.name, &vcf.vcfc.variant_name));
 
         for node in &graph {
-            root_node.children.push(Self::from_geonode(
-                gl,
-                node,
-                use_face_normals,
-                &render_mode,
-                tmt_cache,
-            )?);
+            root_node
+                .children
+                .push(Self::from_geonode(loader_params, node, &render_mode)?);
         }
 
         let root_node_ref = &mut root_node;
 
-        let mut load_wheel = |filename: &str, right_wloc: &WLOC, left_wloc: &WLOC| {
-            let mut from_wdf = |wgeo_lodlevel: &WGEOLodLevel, wloc: &WLOC| -> SceneNode {
-                let wheel_geonode =
-                    geo_graph::GeoNode::from_geopart(&wgeo_lodlevel.lod_parts[0], load_geo);
-                let wheel_scene_node = SceneNode::from_geonode(
-                    gl,
-                    &wheel_geonode,
-                    use_face_normals,
-                    &RenderMode::SGeo,
-                    tmt_cache,
-                )
-                .expect("Failed to load wheel");
+        let mut load_wheel =
+            |filename: &str, right_wloc: &WLOC, left_wloc: &WLOC| -> Result<(), String> {
+                let wdf: WDF = loader_params
+                    .vfs
+                    .load(filename)
+                    .expect("Failed to load wheel");
 
-                let mut wloc_scene_node = SceneNode::new_empty("Wheel".to_string());
-                wloc_scene_node.local_position = wloc.position;
-                wloc_scene_node.local_rotation = Quat::from_mat4(&wloc.rotation_axis.matrix);
-                wloc_scene_node.children.push(wheel_scene_node);
+                let right_wheel = Self::from_wdf(loader_params, &wdf.wgeo.right[0], right_wloc)?;
 
-                wloc_scene_node
+                root_node_ref.children.push(right_wheel);
+
+                let left_wheel = Self::from_wdf(loader_params, &wdf.wgeo.left[0], left_wloc)?;
+
+                root_node_ref.children.push(left_wheel);
+
+                Ok(())
             };
 
-            let wdf: WDF = vfs.load(filename).expect("Failed to load wheel");
-
-            let right_wheel = from_wdf(&wdf.wgeo.right[0], right_wloc);
-
-            root_node_ref.children.push(right_wheel);
-
-            let left_wheel = from_wdf(&wdf.wgeo.left[0], left_wloc);
-
-            root_node_ref.children.push(left_wheel);
-        };
-
         if vcf.vcfc.wdf_front_filename != "null" {
-            load_wheel(&vcf.vcfc.wdf_front_filename, &vdf.wlocs[0], &vdf.wlocs[1]);
+            load_wheel(&vcf.vcfc.wdf_front_filename, &vdf.wlocs[0], &vdf.wlocs[1])
+                .expect("Failed to load front wheels");
         }
 
         if vcf.vcfc.wdf_mid_filename != "null" {
-            load_wheel(&vcf.vcfc.wdf_mid_filename, &vdf.wlocs[2], &vdf.wlocs[3]);
+            load_wheel(&vcf.vcfc.wdf_mid_filename, &vdf.wlocs[2], &vdf.wlocs[3])
+                .expect("Failed to load mid wheels");
         }
 
         if vcf.vcfc.wdf_back_filename != "null" {
-            load_wheel(&vcf.vcfc.wdf_back_filename, &vdf.wlocs[4], &vdf.wlocs[5]);
+            load_wheel(&vcf.vcfc.wdf_back_filename, &vdf.wlocs[4], &vdf.wlocs[5])
+                .expect("Failed to load back wheels");
         }
 
         Ok(root_node)
     }
 
     pub fn from_geonode(
-        gl: &glow::Context,
+        loader_params: &mut SceneNodeLoaderParams<'_, '_>,
         node: &GeoNode,
-        use_face_normals: bool,
+
         render_mode: &RenderMode,
-        tmt_cache: &mut TMTCache,
     ) -> Result<Self, String> {
         let mut children = Vec::new();
         for child in &node.children {
-            children.push(Self::from_geonode(
-                gl,
-                child,
-                use_face_normals,
-                render_mode,
-                tmt_cache,
-            )?);
+            children.push(Self::from_geonode(loader_params, child, render_mode)?);
         }
 
         Ok(Self {
@@ -185,8 +197,13 @@ impl SceneNode {
             local_position: node.local_position,
             local_rotation: Quat::from_mat4(&node.axis.matrix),
             mesh: Some(Mesh::from_submeshes(
-                gl,
-                mesh::submeshes_from_geo(&node.geo, use_face_normals, render_mode, tmt_cache),
+                loader_params.gl,
+                mesh::submeshes_from_geo(
+                    &node.geo,
+                    loader_params.use_face_normals,
+                    render_mode,
+                    loader_params.tmt_cache,
+                ),
             )?),
         })
     }
