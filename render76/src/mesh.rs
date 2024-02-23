@@ -63,8 +63,6 @@ pub fn submeshes_from_geo(
     tmt_cache: &mut TMTCache
 ) -> VerticesIndicesSubmeshes {
     let triangulate_fan = |face: &GeoFace| -> Vec<VertexData> {
-        let mut current_color = vec3(1.0, 1.0, 1.0);
-
         let mut vref_to_vertex_data = |vref: &GeoVertexRef| -> VertexData {
             let vertex = geo.vertices[vref.vertex_index as usize];
             let normal = if use_face_normals {
@@ -73,7 +71,8 @@ pub fn submeshes_from_geo(
                 geo.normals[vref.normal_index as usize]
             };
 
-            if face.color.0 != 0 && face.color.1 != 0 && face.color.2 != 0 {
+            let mut current_color = vec3(1.0, 1.0, 1.0);
+            if face.texture_name == "" {
                 current_color = vec3(
                     face.color.0 as f32 / 255.0,
                     face.color.1 as f32 / 255.0,
