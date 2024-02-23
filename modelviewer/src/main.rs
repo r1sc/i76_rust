@@ -6,8 +6,8 @@ use lib76::fileparsers::sdf::SDF;
 use lib76::fileparsers::vcf::VCF;
 use lib76::virtual_fs::VirtualFS;
 use lib76::zfs_archive::ZFSArchive;
-use render76::{glam, SceneNodeLoaderParams};
 use render76::glow::HasContext;
+use render76::{glam, SceneNodeLoaderParams};
 
 mod gui;
 
@@ -110,12 +110,12 @@ fn main() -> Result<(), std::io::Error> {
     let camera_position = glam::Vec3::new(0.0, -2.0, 10.0);
     let view_matrix = glam::Mat4::from_translation(camera_position);
 
-    let u_model = shader_program
-        .get_uniform_location(&gl, "u_model")
-        .expect("Failed to get u_model");
-    let u_view = shader_program
-        .get_uniform_location(&gl, "u_view")
-        .expect("Failed to get u_view");
+    let u_modelview = shader_program
+        .get_uniform_location(&gl, "u_modelview")
+        .expect("Failed to get u_modelview");
+    let u_normal = shader_program
+        .get_uniform_location(&gl, "u_normal")
+        .expect("Failed to get u_normal");
     let u_projection = shader_program
         .get_uniform_location(&gl, "u_projection")
         .expect("Failed to get u_projection");
@@ -186,15 +186,14 @@ fn main() -> Result<(), std::io::Error> {
             angle += 0.5;
             angle %= 360.0;
         }
+        
+        let model_matrix = glam::Mat4::from_rotation_y(angle * DEG2RAD);
 
         unsafe {
             gl.clear(render76::glow::COLOR_BUFFER_BIT | render76::glow::DEPTH_BUFFER_BIT);
-            gl.uniform_matrix_4_f32_slice(Some(&u_view), false, view_matrix.as_ref());
         }
 
-        let model_matrix = glam::Mat4::from_rotation_y(angle * DEG2RAD);
-
-        scene_node.render(&gl, model_matrix, &u_model, &mut texture_cache);
+        scene_node.render(&gl, model_matrix, view_matrix, &u_modelview, &u_normal, &mut texture_cache);
 
         gui.render(window_width, window_height);
 

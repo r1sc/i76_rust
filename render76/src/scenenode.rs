@@ -212,14 +212,20 @@ impl SceneNode {
         &self,
         gl: &glow::Context,
         mut model_matrix: glam::Mat4,
-        loc: &glow::UniformLocation,
+        view_matrix: glam::Mat4,
+        u_modelview: &glow::UniformLocation,
+        u_normal: &glow::UniformLocation,
         texture_cache: &mut TextureCache,
     ) {
         model_matrix *= glam::Mat4::from_translation(self.local_position);
         model_matrix *= glam::Mat4::from_quat(self.local_rotation);
 
         unsafe {
-            gl.uniform_matrix_4_f32_slice(Some(loc), false, model_matrix.as_ref());
+            let modelview = view_matrix * model_matrix;
+            gl.uniform_matrix_4_f32_slice(Some(&u_modelview), false, modelview.as_ref());
+
+            let normalmatrix = modelview.inverse().transpose();
+            gl.uniform_matrix_4_f32_slice(Some(&u_normal), false, normalmatrix.as_ref());
         }
 
         if let Some(mesh) = &self.mesh {
@@ -245,7 +251,7 @@ impl SceneNode {
         }
 
         for child in &self.children {
-            child.render(gl, model_matrix, loc, texture_cache);
+            child.render(gl, model_matrix, view_matrix, u_modelview, u_normal, texture_cache);
         }
     }
 }

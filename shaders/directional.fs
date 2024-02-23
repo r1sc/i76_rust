@@ -3,31 +3,43 @@ precision highp float;
 in vec2 v_uv;
 in vec3 v_normal;
 in vec3 v_color;
-in vec3 v_fragPosition_ViewSpace;
+in vec3 v_vertpos;
 
-uniform mat4 u_view;
-uniform mat4 u_model;
-uniform vec3 u_ambient;
+uniform mat4 u_projection;
+uniform mat4 u_modelview;
 uniform sampler2D u_texture;
 
 out vec4 color;
 
-const vec3 lightColor = vec3(0.0, 0.5, 0.5);
-const vec3 lightDir = -normalize(vec3(0.0, 0.0, -1.0));
+const vec3 lightColor = vec3(1.0, 1.0, 1.0);
+const vec3 lightDir = normalize(vec3(0.0, -1.0, -1.0));
 const vec3 ambientColor = vec3(0.3, 0.3, 0.3);
 const vec3 specularColor = vec3(1.0, 1.0, 1.0);
-const float specularStrength = 0.5;
-const float specularShininess = 32.0;
+const float specularShininess = 16.0;
+const float screenGamma = 1.0; // Assume the monitor is calibrated to the sRGB color space
 
 void main() {
-    float NdotL = dot(v_normal, lightDir);
-    float brightness = clamp(NdotL, 0.0, 1.0);
-    vec3 diffuse = brightness * (v_color * texture(u_texture, v_uv).xyz);
+    vec3 normal = normalize(v_normal);
 
-    vec3 H = normalize(lightDir + normalize(v_fragPosition_ViewSpace));
-    float NdotH = max(dot(v_normal, H), 0.0);
-    float specularBrightness = pow(NdotH, 256.0) * specularStrength;
-    vec3 specular = specularBrightness * specularColor;
+    float lambertian = clamp(dot(-lightDir, normal), 0.0, 1.0);
+    vec3 viewDir = normalize(-v_vertpos);
+    
+    float specular = 0.0;
+    if(specularShininess > 0.0) {
+        vec3 halfDir = normalize(-lightDir + viewDir);
+        float specAngle = max(dot(halfDir, v_normal), 0.0);
+        specular = pow(specAngle, specularShininess);
+    }
 
-    color = vec4(diffuse + specular + ambientColor, 1.0);
+    vec3 diffuseColor = v_color * texture(u_texture, v_uv).xyz;
+
+    vec3 colorLinear = ambientColor +
+                       diffuseColor * lambertian * lightColor +
+                       specularColor * specular * lightColor;
+
+    // apply gamma correction (assume ambientColor, diffuseColor and specColor
+    // have been linearized, i.e. have no gamma correction in them)
+    vec3 colorGammaCorrected = pow(colorLinear, vec3(1.0 / screenGamma));
+
+    color = vec4(colorGammaCorrected, 1.0);
 }
