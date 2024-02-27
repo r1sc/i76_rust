@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::Path};
 
-use glam::{vec2, vec3, Vec2, Vec3, Vec4Swizzles};
+use glam::{vec2, vec3, vec4, Vec2, Vec3, Vec4, Vec4Swizzles};
 use glow::HasContext;
 use lib76::fileparsers::geo::{Geo, GeoFace, GeoVertexRef};
 
@@ -12,7 +12,7 @@ pub struct VertexData {
     position: Vec3,
     uv: Vec2,
     normal: Vec3,
-    color: Vec3,
+    color: Vec4,
 }
 
 impl Eq for VertexData {}
@@ -28,12 +28,19 @@ fn hash_vec3(v: Vec3, state: &mut impl std::hash::Hasher) {
     state.write(&v.z.to_le_bytes());
 }
 
+fn hash_vec4(v: Vec4, state: &mut impl std::hash::Hasher) {
+    state.write(&v.x.to_le_bytes());
+    state.write(&v.y.to_le_bytes());
+    state.write(&v.z.to_le_bytes());
+    state.write(&v.w.to_le_bytes());
+}
+
 impl std::hash::Hash for VertexData {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         hash_vec3(self.position, state);
         hash_vec2(self.uv, state);
         hash_vec3(self.normal, state);
-        hash_vec3(self.color, state);
+        hash_vec4(self.color, state);
     }
 }
 
@@ -60,10 +67,10 @@ pub fn submeshes_from_geo(
     geo: &Geo,
     use_face_normals: bool,
     render_mode: &RenderMode,
-    tmt_cache: &mut TMTCache
+    tmt_cache: &mut TMTCache,
 ) -> VerticesIndicesSubmeshes {
     let triangulate_fan = |face: &GeoFace| -> Vec<VertexData> {
-        let mut vref_to_vertex_data = |vref: &GeoVertexRef| -> VertexData {
+        let vref_to_vertex_data = |vref: &GeoVertexRef| -> VertexData {
             let vertex = geo.vertices[vref.vertex_index as usize];
             let normal = if use_face_normals {
                 face.normal.xyz()
@@ -71,12 +78,14 @@ pub fn submeshes_from_geo(
                 geo.normals[vref.normal_index as usize]
             };
 
-            let mut current_color = vec3(1.0, 1.0, 1.0);
-            if face.texture_name == "" {
-                current_color = vec3(
+            let alpha = if (face.flags.1 & 4) == 4 { 0.0 } else { 1.0 };
+            let mut color = vec4(1.0, 1.0, 1.0, alpha);
+            if face.texture_name.is_empty() {
+                color = vec4(
                     face.color.0 as f32 / 255.0,
                     face.color.1 as f32 / 255.0,
                     face.color.2 as f32 / 255.0,
+                    alpha,
                 );
             }
 
@@ -84,7 +93,7 @@ pub fn submeshes_from_geo(
                 position: vertex,
                 uv: vec2(vref.uv.0, vref.uv.1),
                 normal: vec3(normal.x, -normal.y, normal.z),
-                color: current_color,
+                color,
             }
         };
 
@@ -110,18 +119,24 @@ pub fn submeshes_from_geo(
             .to_str()
             .unwrap();
 
-        let texture_name = match render_mode {
-            RenderMode::SGeo => stripped_texture_name,
-            RenderMode::Vehicle(vtf) => {
-                if stripped_texture_name == "V1 BO DY" {
-                    ""
-                } else if stripped_texture_name.starts_with("V1") {
-                    let vtf_part_no =
-                        lib76::fileparsers::vtf::car_texture_name_to_vtf_loc(stripped_texture_name);
+        let stripped_texture_name_ucase = stripped_texture_name.to_uppercase();
 
-                    &vtf.vtfc.parts[vtf_part_no as usize][..]                    
+        let texture_name = match render_mode {
+            RenderMode::SGeo => &stripped_texture_name_ucase,
+            RenderMode::Vehicle(vtf) => {
+                if stripped_texture_name_ucase == "V1 BO DY" {
+                    ""
+                } else if stripped_texture_name_ucase.starts_with("V1")
+                    || stripped_texture_name_ucase.starts_with("V2")
+                    || stripped_texture_name_ucase.starts_with("V3")
+                {
+                    let vtf_part_no = lib76::fileparsers::vtf::car_texture_name_to_vtf_loc(
+                        &stripped_texture_name_ucase,
+                    );
+
+                    &vtf.vtfc.parts[vtf_part_no as usize][..]
                 } else {
-                    stripped_texture_name
+                    &stripped_texture_name_ucase
                 }
             }
         };
@@ -231,11 +246,11 @@ impl Mesh {
                 std::mem::size_of::<Vec3>() as i32 + std::mem::size_of::<Vec2>() as i32,
             );
 
-            // Color (vec3)
+            // Color (vec4)
             gl.enable_vertex_attrib_array(3);
             gl.vertex_attrib_pointer_f32(
                 3,
-                3,
+                4,
                 glow::FLOAT,
                 false,
                 stride,

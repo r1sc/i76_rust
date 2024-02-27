@@ -52,7 +52,7 @@ pub fn car_texture_name_to_vtf_loc(texture_name: &str) -> u32 {
         .replace(".VQM", "");
     let mut splitted = upper.split_whitespace();
     match (splitted.next(), splitted.next(), splitted.next()) {
-        (Some("V1"), Some(md), Some(rt)) => {
+        (Some(_), Some(md), Some(rt)) => {
             let major = match md {
                 "FT" => 0,
                 "MD" => 6,

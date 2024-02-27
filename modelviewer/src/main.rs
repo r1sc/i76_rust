@@ -1,15 +1,25 @@
 use std::path::Path;
 
 use glfw::Context;
+use lib76::car_loader::CarParts;
 use lib76::fileparsers::act::ACT;
 use lib76::fileparsers::sdf::SDF;
-use lib76::fileparsers::vcf::VCF;
 use lib76::virtual_fs::VirtualFS;
 use lib76::zfs_archive::ZFSArchive;
 use render76::glow::HasContext;
-use render76::{glam, SceneNodeLoaderParams};
+use render76::{glam, SceneNode, SceneNodeLoaderParams};
 
 mod gui;
+
+enum MapObject {
+    Car {
+        _parts: CarParts,
+        scene_nodes_by_lod_damage_state: Vec<Vec<render76::SceneNode>>,
+    },
+    Sdf {
+        scene_node: SceneNode,
+    },
+}
 
 fn main() -> Result<(), std::io::Error> {
     let args: Vec<_> = std::env::args().collect();
@@ -80,16 +90,32 @@ fn main() -> Result<(), std::io::Error> {
         tmt_cache: &mut tmt_cache,
     };
 
-    let scene_node = match extension {
+    let map_object: MapObject = match extension {
         "sdf" => {
             let sdf = vfs.load::<SDF>(model_filename).expect("Failed to load SDF");
-            render76::SceneNode::from_sdf(&mut loader_params, &sdf)
-                .expect("Failed to build scene nodes")
+            MapObject::Sdf {
+                scene_node: render76::SceneNode::from_sdf(&mut loader_params, &sdf)
+                    .expect("Failed to build scene nodes"),
+            }
         }
         "vcf" => {
-            let vcf: VCF = vfs.load(model_filename)?;
-            render76::SceneNode::from_vcf(&mut loader_params, &vcf)
-                .expect("Failed to build scene nodes")
+            let car = CarParts::load_car(model_filename, &vfs);
+            let mut scene_nodes_by_lod_damage_state = Vec::new();
+            for i in 0..car.lods.len() {
+                let mut scene_nodes = Vec::new();
+                for j in 0..car.lods[i].damage_state_graphs.len() {
+                    scene_nodes.push(
+                        render76::SceneNode::from_car(&mut loader_params, &car, j as u32, i as u32)
+                            .expect("Failed to build scene nodes"),
+                    );
+                }
+                scene_nodes_by_lod_damage_state.push(scene_nodes);
+            }
+            
+            MapObject::Car {
+                _parts: car,
+                scene_nodes_by_lod_damage_state,
+            }
         }
         _ => {
             panic!("Unknown file type {}", extension);
@@ -119,6 +145,9 @@ fn main() -> Result<(), std::io::Error> {
     let u_projection = shader_program
         .get_uniform_location(&gl, "u_projection")
         .expect("Failed to get u_projection");
+    let u_shininess = shader_program
+        .get_uniform_location(&gl, "u_shininess")
+        .expect("Failed to get u_shininess");
 
     unsafe {
         gl.uniform_matrix_4_f32_slice(Some(&u_projection), false, projection_matrix.as_ref());
@@ -128,6 +157,8 @@ fn main() -> Result<(), std::io::Error> {
 
     let mut auto_rotate = true;
     let mut angle = 0.0;
+    let mut lod = 0;
+    let mut damage_state = 0;
 
     const DEG2RAD: f32 = std::f32::consts::PI / 180.0;
 
@@ -167,7 +198,16 @@ fn main() -> Result<(), std::io::Error> {
                 .auto_sized()
                 .title_bar(false)
                 .show(ctx, |ui| {
-                    ui.label(&scene_node.name);
+                    match &map_object {
+                        MapObject::Car { scene_nodes_by_lod_damage_state, .. } => {
+                            ui.label(&scene_nodes_by_lod_damage_state[lod][damage_state].name);
+                            ui.add(egui::Slider::new(&mut lod, 0..=scene_nodes_by_lod_damage_state.len() - 1).text("LOD"));
+                            ui.add(egui::Slider::new(&mut damage_state, 0..=scene_nodes_by_lod_damage_state[lod].len() - 1).text("Damage state"));
+                        }
+                        MapObject::Sdf { scene_node } => {
+                            ui.label(&scene_node.name);
+                        }
+                    }
                     ui.checkbox(&mut auto_rotate, "Auto-rotate model");
                     ui.add_enabled(
                         !auto_rotate,
@@ -186,14 +226,36 @@ fn main() -> Result<(), std::io::Error> {
             angle += 0.5;
             angle %= 360.0;
         }
-        
+
         let model_matrix = glam::Mat4::from_rotation_y(angle * DEG2RAD);
 
         unsafe {
             gl.clear(render76::glow::COLOR_BUFFER_BIT | render76::glow::DEPTH_BUFFER_BIT);
         }
 
-        scene_node.render(&gl, model_matrix, view_matrix, &u_modelview, &u_normal, &mut texture_cache);
+        let render_object = match &map_object {
+            MapObject::Car { scene_nodes_by_lod_damage_state, .. } => {
+                unsafe {
+                    gl.uniform_1_f32(Some(&u_shininess), 32.0);
+                }
+                &scene_nodes_by_lod_damage_state[lod][damage_state]
+            },
+            MapObject::Sdf { scene_node } =>  {
+                unsafe {
+                    gl.uniform_1_f32(Some(&u_shininess), 0.0);
+                }
+                scene_node
+            }
+        };
+
+        render_object.render(
+            &gl,
+            model_matrix,
+            view_matrix,
+            &u_modelview,
+            &u_normal,
+            &mut texture_cache,
+        );
 
         gui.render(window_width, window_height);
 

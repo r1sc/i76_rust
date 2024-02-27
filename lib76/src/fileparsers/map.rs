@@ -37,7 +37,11 @@ impl MAP {
         iter.flat_map(|row| {
             row.iter().map(|clut_ref| {
                 let rgb = act.entries[*clut_ref as usize];
-                (255 << 24) | ((rgb.0 as u32) << 16) | ((rgb.1 as u32) << 8) | (rgb.2 as u32)
+                let transparent = *clut_ref == 0xFF || *clut_ref == 1;
+                (if transparent { 0 << 24 } else { 255 << 24 })
+                    | ((rgb.0 as u32) << 16)
+                    | ((rgb.1 as u32) << 8)
+                    | (rgb.2 as u32)
             })
         })
         .collect()

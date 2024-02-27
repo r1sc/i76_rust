@@ -4,3 +4,4 @@ pub mod geo_graph;
 pub mod math;
 pub mod virtual_fs;
 pub mod zfs_archive;
+pub mod car_loader;

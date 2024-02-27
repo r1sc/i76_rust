@@ -7,9 +7,6 @@ use lib76::{
         bwd2::{WGEOLodLevel, WLOC},
         geo::Geo,
         sdf::SDF,
-        vcf::VCF,
-        vdf::VDF,
-        vtf::VTF,
         wdf::WDF,
     },
     geo_graph::{self, GeoNode},
@@ -104,39 +101,20 @@ impl SceneNode {
         Ok(wloc_scene_node)
     }
 
-    pub fn from_vcf(
+    pub fn from_car(
         loader_params: &mut SceneNodeLoaderParams<'_, '_>,
-        vcf: &VCF,
+        car: &lib76::car_loader::CarParts,
+        damage_state: u32,
+        lod_level: u32,
     ) -> Result<Self, String> {
-        let vtf: VTF = loader_params
-            .vfs
-            .load(&vcf.vcfc.vtf_filename)
-            .expect("Failed to load vtf");
+        let render_mode = RenderMode::Vehicle(&car.vtf);
 
-        let vdf: VDF = loader_params
-            .vfs
-            .load(&vtf.vtfc.vdf_filename)
-            .expect("Failed to load vdf");
+        let mut root_node = Self::new_empty(format!(
+            "{} - {}",
+            &car.vdf.vdfc.name, &car.vcf.vcfc.variant_name
+        ));
 
-        let load_geo = |name: &str| -> Rc<Geo> {
-            let filename = format!("{}.geo", name);
-            Rc::new(
-                loader_params
-                    .vfs
-                    .load::<Geo>(&filename)
-                    .expect("Failed to load geo"),
-            )
-        };
-
-        let graph = geo_graph::from(vdf.vgeo.third_person_parts[0][0].iter(), load_geo)
-            .expect("Failed to build graph");
-
-        let render_mode = RenderMode::Vehicle(vtf);
-
-        let mut root_node =
-            Self::new_empty(format!("{} - {}", &vdf.vdfc.name, &vcf.vcfc.variant_name));
-
-        for node in &graph {
+        for node in &car.lods[lod_level as usize].damage_state_graphs[damage_state as usize] {
             root_node
                 .children
                 .push(Self::from_geonode(loader_params, node, &render_mode)?);
@@ -151,29 +129,31 @@ impl SceneNode {
                     .load(filename)
                     .expect("Failed to load wheel");
 
-                let right_wheel = Self::from_wdf(loader_params, &wdf.wgeo.right[0], right_wloc)?;
+                let right_wheel =
+                    Self::from_wdf(loader_params, &wdf.wgeo.right[lod_level as usize], right_wloc)?;
 
                 root_node_ref.children.push(right_wheel);
 
-                let left_wheel = Self::from_wdf(loader_params, &wdf.wgeo.left[0], left_wloc)?;
+                let left_wheel =
+                    Self::from_wdf(loader_params, &wdf.wgeo.left[lod_level as usize], left_wloc)?;
 
                 root_node_ref.children.push(left_wheel);
 
                 Ok(())
             };
 
-        if vcf.vcfc.wdf_front_filename != "null" {
-            load_wheel(&vcf.vcfc.wdf_front_filename, &vdf.wlocs[0], &vdf.wlocs[1])
+        if car.vcf.vcfc.wdf_front_filename != "null" {
+            load_wheel(&car.vcf.vcfc.wdf_front_filename, &car.vdf.wlocs[0], &car.vdf.wlocs[1])
                 .expect("Failed to load front wheels");
         }
 
-        if vcf.vcfc.wdf_mid_filename != "null" {
-            load_wheel(&vcf.vcfc.wdf_mid_filename, &vdf.wlocs[2], &vdf.wlocs[3])
+        if car.vcf.vcfc.wdf_mid_filename != "null" {
+            load_wheel(&car.vcf.vcfc.wdf_mid_filename, &car.vdf.wlocs[2], &car.vdf.wlocs[3])
                 .expect("Failed to load mid wheels");
         }
 
-        if vcf.vcfc.wdf_back_filename != "null" {
-            load_wheel(&vcf.vcfc.wdf_back_filename, &vdf.wlocs[4], &vdf.wlocs[5])
+        if car.vcf.vcfc.wdf_back_filename != "null" {
+            load_wheel(&car.vcf.vcfc.wdf_back_filename, &car.vdf.wlocs[4], &car.vdf.wlocs[5])
                 .expect("Failed to load back wheels");
         }
 
@@ -183,7 +163,6 @@ impl SceneNode {
     pub fn from_geonode(
         loader_params: &mut SceneNodeLoaderParams<'_, '_>,
         node: &GeoNode,
-
         render_mode: &RenderMode,
     ) -> Result<Self, String> {
         let mut children = Vec::new();
@@ -222,10 +201,10 @@ impl SceneNode {
 
         unsafe {
             let modelview = view_matrix * model_matrix;
-            gl.uniform_matrix_4_f32_slice(Some(&u_modelview), false, modelview.as_ref());
+            gl.uniform_matrix_4_f32_slice(Some(u_modelview), false, modelview.as_ref());
 
             let normalmatrix = modelview.inverse().transpose();
-            gl.uniform_matrix_4_f32_slice(Some(&u_normal), false, normalmatrix.as_ref());
+            gl.uniform_matrix_4_f32_slice(Some(u_normal), false, normalmatrix.as_ref());
         }
 
         if let Some(mesh) = &self.mesh {
@@ -251,7 +230,14 @@ impl SceneNode {
         }
 
         for child in &self.children {
-            child.render(gl, model_matrix, view_matrix, u_modelview, u_normal, texture_cache);
+            child.render(
+                gl,
+                model_matrix,
+                view_matrix,
+                u_modelview,
+                u_normal,
+                texture_cache,
+            );
         }
     }
 }

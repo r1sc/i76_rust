@@ -58,7 +58,7 @@ where
                 relative_to: &str,
             ) -> Option<&'a mut GeoNode> {
                 for parent in children {
-                    if parent.name == relative_to {
+                    if &parent.name[&parent.name.len() - 4..] == relative_to {
                         return Some(parent);
                     }
 
@@ -68,13 +68,15 @@ where
                 }
                 None
             }
-            match find_parent(&mut root_children, &part.relative_to[..]) {
+
+            let relative_to = &part.relative_to[&part.relative_to.len() - 4..];
+            match find_parent(&mut root_children, relative_to) {
                 Some(parent) => {
                     parent.children.push(node);
                 }
                 None => {
                     root_children.push(node);
-                    println!("Cannot find parent {}", &part.relative_to[..]);
+                    println!("Cannot find parent {}", relative_to);
                 }
             }
         }

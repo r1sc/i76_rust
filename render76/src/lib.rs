@@ -11,7 +11,7 @@ mod mem_utils;
 mod mesh;
 mod scenenode;
 
-pub enum RenderMode {
+pub enum RenderMode<'a> {
     SGeo,
-    Vehicle(VTF)
+    Vehicle(&'a VTF)
 }
