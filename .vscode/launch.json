@@ -28,6 +28,18 @@
             "environment": [],
             "preLaunchTask": "cargo build",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "(Windows) Debug decompiler",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/i76tool.exe",
+            "args": ["decompile", "c:\\spel\\Interstate 76\\miss16\\a01.msn"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "preLaunchTask": "cargo build",
+            "console": "integratedTerminal"
         }
     ]
 }

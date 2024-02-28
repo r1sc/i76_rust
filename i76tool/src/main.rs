@@ -190,7 +190,7 @@ fn main() -> Result<(), std::io::Error> {
             println!("[Machines]");
             for (i, machine) in msn.fsm.stack_machine_definitions.iter().enumerate() {
                 println!(
-                    "{} {} {:?}",
+                    "{} start_address: {} initial_stack: {:?}",
                     i, machine.start_address, &machine.initial_arguments
                 );
             }
@@ -200,10 +200,10 @@ fn main() -> Result<(), std::io::Error> {
             for (i, instruction) in msn.fsm.raw_instructions.iter().enumerate() {
                 let instruction_str = match instruction.opcode {
                     FSMOpcode::Push => format!("push {}", instruction.value),
-                    FSMOpcode::ArgPushS => format!("push_s {}", instruction.value),
-                    FSMOpcode::ArgPushB => format!("push_b {}", instruction.value),
-                    FSMOpcode::Adjust => format!("adjust {}", instruction.value),
-                    FSMOpcode::Drop => format!("drop {}", instruction.value),
+                    FSMOpcode::ArgPushS => format!("copy_s {}", instruction.value),
+                    FSMOpcode::ArgPushB => format!("copy_b {}", instruction.value),
+                    FSMOpcode::StackMod => format!("stack_mod {}", instruction.value),
+                    FSMOpcode::Pop => format!("pop {}", instruction.value),
                     FSMOpcode::Jmp => format!("jmp {}", instruction.value),
                     FSMOpcode::Jz => format!("jz {}", instruction.value),
                     FSMOpcode::JmpI => format!("jmp_i {}", instruction.value),
@@ -212,7 +212,7 @@ fn main() -> Result<(), std::io::Error> {
                         "action {}",
                         &msn.fsm.action_table[instruction.value as usize]
                     ),
-                    FSMOpcode::Neg => format!("neg {}", instruction.value),
+                    FSMOpcode::Neg => "neg".to_string(),
                 };
                 println!("{} {}", i, instruction_str);
             }

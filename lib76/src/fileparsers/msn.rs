@@ -550,16 +550,27 @@ pub struct FSMStackMachineDefinition {
 
 #[derive(Debug)]
 pub enum FSMOpcode {
+    /// Stack Push. Argument written at SP, Increment SP
     Push,
+    /// Copy Argument From Stack. Copy from "BP+argument" to AS
     ArgPushS,
+    /// Copy Argument from Parameter. Copy from "BP + argument-1" to AS. Negative Arguments Expected.
     ArgPushB,
-    Adjust, // Adjust by arg
-    Drop,   // Set stack pointer to SP-arg
+    /// Add Elements to stack. SP = SP + argument.
+    StackMod,
+    /// POP Elements from stack. SP = SP - argument
+    Pop,
+    /// Unconditional Jump. Set IP to argument
     Jmp,
+    /// Conditional Jump. If AR is 0 then set IP to argument
     Jz,
+    /// Unconditional Jump and De-schedule. Set IP to argument, then halt the running instance
     JmpI,
+    /// Reload IP and Reset SP
     Rst,
+    /// Perform Action given by argument. Consumes AS and Modifies AR
     Action,
+    /// Complement AR
     Neg,
 }
 
@@ -571,8 +582,8 @@ impl TryFrom<u32> for FSMOpcode {
             1 => Ok(Self::Push),
             4 => Ok(Self::ArgPushS),
             5 => Ok(Self::ArgPushB),
-            6 => Ok(Self::Adjust),
-            7 => Ok(Self::Drop),
+            6 => Ok(Self::StackMod),
+            7 => Ok(Self::Pop),
             8 => Ok(Self::Jmp),
             9 => Ok(Self::Jz),
             10 => Ok(Self::JmpI),

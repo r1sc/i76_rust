@@ -10,6 +10,7 @@ mod cache;
 mod mem_utils;
 mod mesh;
 mod scenenode;
+mod terrain;
 
 pub enum RenderMode<'a> {
     SGeo,

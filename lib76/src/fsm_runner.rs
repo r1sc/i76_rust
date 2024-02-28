@@ -83,7 +83,7 @@ impl FSMStackMachine {
 
                 self.argument_queue.push_back(b_val);
             }
-            FSMOpcode::Adjust => {
+            FSMOpcode::StackMod => {
                 let add_to_sp = instruction.value;
 
                 if add_to_sp < 1 {
@@ -94,7 +94,7 @@ impl FSMStackMachine {
                     self.stack.push(0);
                 }
             }
-            FSMOpcode::Drop => {
+            FSMOpcode::Pop => {
                 let sub_from_sp = instruction.value;
                 if sub_from_sp < 0 {
                     panic!("FSMOpcode::Drop Expecting positive values");
