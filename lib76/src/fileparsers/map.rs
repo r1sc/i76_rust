@@ -15,7 +15,19 @@ impl Readable for MAP {
     fn consume(reader: &mut BinaryReader) -> Result<Self, std::io::Error> {
         let width = reader.read_u32()?;
         let height = reader.read_u32()?;
-        let clut_refs = reader.bytes((width * height) as usize)?;
+        let expected_len = width.checked_mul(height).ok_or(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "MAP dimensions overflow payload size",
+        ))? as usize;
+        let available_len = reader.size()? as usize;
+        let mut clut_refs = reader.bytes(expected_len.min(available_len))?;
+
+        if clut_refs.len() < expected_len {
+            // Some MAP files advertise a full WxH payload but end a few bytes early.
+            // Pad the missing refs with transparency instead of failing on EOF.
+            clut_refs.resize(expected_len, 0xFF);
+        }
+
         Ok(Self {
             width,
             height,

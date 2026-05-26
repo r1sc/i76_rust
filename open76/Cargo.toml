@@ -10,7 +10,7 @@ publish = false
 [dependencies]
 byteorder = "1.4"
 rodio = "0.17"
-glfw = "0.54"
+glfw = "0.62"
 lib76 = { path = "../lib76" }
 libsmacker = { path = "../libsmacker" }
 glam = "0.25"

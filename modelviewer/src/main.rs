@@ -1,3 +1,4 @@
+use std::ffi::c_void;
 use std::path::Path;
 
 use glfw::Context;
@@ -53,11 +54,16 @@ fn main() -> Result<(), std::io::Error> {
     window.set_cursor_pos_polling(true);
     window.set_framebuffer_size_polling(true);
     window.make_current();
+    glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
 
     #[allow(clippy::arc_with_non_send_sync)]
     // bc egui_glow requires an Arc.. why IDK it's single threaded..
     let gl = std::sync::Arc::new(unsafe {
-        render76::glow::Context::from_loader_function(|s| window.get_proc_address(s))
+        render76::glow::Context::from_loader_function(|s| {
+            window
+                .get_proc_address(s)
+                .map_or(std::ptr::null(), |proc| proc as *const c_void)
+        })
     });
 
     // Load assets
@@ -111,7 +117,7 @@ fn main() -> Result<(), std::io::Error> {
                 }
                 scene_nodes_by_lod_damage_state.push(scene_nodes);
             }
-            
+
             MapObject::Car {
                 _parts: car,
                 scene_nodes_by_lod_damage_state,
@@ -199,10 +205,25 @@ fn main() -> Result<(), std::io::Error> {
                 .title_bar(false)
                 .show(ctx, |ui| {
                     match &map_object {
-                        MapObject::Car { scene_nodes_by_lod_damage_state, .. } => {
+                        MapObject::Car {
+                            scene_nodes_by_lod_damage_state,
+                            ..
+                        } => {
                             ui.label(&scene_nodes_by_lod_damage_state[lod][damage_state].name);
-                            ui.add(egui::Slider::new(&mut lod, 0..=scene_nodes_by_lod_damage_state.len() - 1).text("LOD"));
-                            ui.add(egui::Slider::new(&mut damage_state, 0..=scene_nodes_by_lod_damage_state[lod].len() - 1).text("Damage state"));
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut lod,
+                                    0..=scene_nodes_by_lod_damage_state.len() - 1,
+                                )
+                                .text("LOD"),
+                            );
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut damage_state,
+                                    0..=scene_nodes_by_lod_damage_state[lod].len() - 1,
+                                )
+                                .text("Damage state"),
+                            );
                         }
                         MapObject::Sdf { scene_node } => {
                             ui.label(&scene_node.name);
@@ -234,13 +255,16 @@ fn main() -> Result<(), std::io::Error> {
         }
 
         let render_object = match &map_object {
-            MapObject::Car { scene_nodes_by_lod_damage_state, .. } => {
+            MapObject::Car {
+                scene_nodes_by_lod_damage_state,
+                ..
+            } => {
                 unsafe {
                     gl.uniform_1_f32(Some(&u_shininess), 32.0);
                 }
                 &scene_nodes_by_lod_damage_state[lod][damage_state]
-            },
-            MapObject::Sdf { scene_node } =>  {
+            }
+            MapObject::Sdf { scene_node } => {
                 unsafe {
                     gl.uniform_1_f32(Some(&u_shininess), 0.0);
                 }
