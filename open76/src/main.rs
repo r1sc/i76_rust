@@ -12,7 +12,7 @@ use glfw::{
     ffi::{glfwSetFramebufferSizeCallback, GLFWwindow},
     Action, Context,
 };
-use std::{cell::RefCell, path::Path, rc::Rc, time::Instant};
+use std::{cell::RefCell, ffi::c_void, path::Path, rc::Rc, time::Instant};
 
 use lib76::fileparsers::{ter::TER, vtf::VTF};
 use lib76::{
@@ -34,10 +34,10 @@ fn main() -> anyhow::Result<()> {
     let mut camera = camera::Camera::new();
 
     println!("Loading data");
-    let game_path = Path::new(r"C:\spel\Interstate 76");
+    let game_path = Path::new(r"D:\spel\Interstate 76");
     // let vfs = virtual_fs::VirtualFS::new(r"C:\spel\Interstate 76".to_string())?;
     let vfs = VirtualFS {
-        disk_folders: vec![game_path.join("addon"), game_path.join("miss16")],
+        disk_folders: vec![game_path.join("addon"), game_path.join("miss8")],
         zfs_archive: Some(ZFSArchive::new(&game_path.join("I76.ZFS"))?),
     };
     // let mut files = vfs.get_file_list();
@@ -114,10 +114,15 @@ fn main() -> anyhow::Result<()> {
 
     window.make_current();
     window.set_cursor_mode(glfw::CursorMode::Disabled);
+    window.set_raw_mouse_motion(true);
     window.set_key_polling(true);
     window.set_raw_mouse_motion(true);
 
-    gl::load_with(|s| window.get_proc_address(s));
+    gl::load_with(|s| {
+        window
+            .get_proc_address(s)
+            .map_or(std::ptr::null(), |proc| proc as *const c_void)
+    });
 
     let light_pos = Vec4::new(-1.0, 1.0, -1.0, 0.0).to_array().as_ptr();
     let ambient_color = act.entries[247].to_vec3().extend(1.0).to_array();
@@ -185,12 +190,11 @@ fn main() -> anyhow::Result<()> {
 
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-
-            gl::LoadIdentity();
+            
+            gl::LoadMatrixf(&camera.get_view().to_cols_array() as *const _);
 
             sky.draw(sky_texture);
-
-            gl::LoadMatrixf(&camera.get_view().to_cols_array() as *const _);
+            
             gl::Lightfv(gl::LIGHT0, gl::POSITION, light_pos);
 
             gl::Enable(gl::CULL_FACE);
@@ -212,7 +216,7 @@ fn main() -> anyhow::Result<()> {
                 gl::PushMatrix();
                 gl::Translatef(
                     object.2.position.x - camera.position.x,
-                    object.2.position.y - camera.position.y,
+                    object.2.position.y - camera.position.y + 0.2,
                     object.2.position.z - camera.position.z,
                 );
                 gl::MultMatrixf(object.2.rotation.matrix.to_cols_array().as_ptr());
@@ -261,12 +265,13 @@ fn main() -> anyhow::Result<()> {
 
         camera.translate(x_disp * 10.0 * delta, z_disp * 10.0 * delta);
 
+        
         let (x, y) = window.get_cursor_pos();
         let (dx, dy) = (ox - x, oy - y);
         ox = x;
         oy = y;
 
-        camera.turn((dx as f32) * 2.0, (dy as f32) * 2.0, delta);
+        camera.turn((dx as f32) * 7.0, (dy as f32) * 7.0, delta);
 
         window.set_title(&format!(
             "{}, {}, {}",

@@ -18,24 +18,21 @@ impl Sky {
             gl::Disable(gl::LIGHTING);
             gl::Disable(gl::DEPTH_TEST);
             gl::Disable(gl::ALPHA_TEST);
+            gl::Disable(gl::CULL_FACE);
             gl::Enable(gl::TEXTURE_2D);
-
-            gl::PushMatrix();
 
             gl::BindTexture(gl::TEXTURE_2D, texture);
 
             gl::Begin(gl::QUADS);
             gl::TexCoord2f(self.drift, 0.0);
             gl::Vertex3f(-100.0, 1.0, -100.0);
-            gl::TexCoord2f(self.drift + 100.0, 0.0);
+            gl::TexCoord2f(self.drift + 50.0, 0.0);
             gl::Vertex3f(100.0, 1.0, -100.0);
-            gl::TexCoord2f(self.drift + 100.0, 100.0);
+            gl::TexCoord2f(self.drift + 50.0, 50.0);
             gl::Vertex3f(100.0, 1.0, 100.0);
-            gl::TexCoord2f(self.drift, 100.0);
+            gl::TexCoord2f(self.drift, 50.0);
             gl::Vertex3f(-100.0, 1.0, 100.0);
             gl::End();
-
-            gl::PopMatrix();
         }
     }
 }
